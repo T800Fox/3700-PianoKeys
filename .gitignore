@@ -1,0 +1,32 @@
+# Quartus generated directories
+db/
+incremental_db/
+output_files/
+
+# Quartus-generated files
+*.rpt
+*.summary
+*.smsg
+*.qws
+*.jdi
+*.sld
+*.sof
+*.pof
+*.cdf
+
+# Simulation/generated waveform files
+*.vcd
+*.wlf
+
+# Temporary / backup files
+*.bak
+*.tmp
+*.swp
+*~
+
+# OS/editor junk
+.DS_Store
+Thumbs.db
+
+# VS Code
+.vscode/
