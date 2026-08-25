@@ -1,0 +1,9 @@
+# demo.qpf -- Quartus project file for the MTRX3700 Assignment 1 scaffold.
+#
+# The .qpf just names the project revisions; all the real settings are in
+# demo.qsf. If you rename the project, rename demo.qpf, demo.qsf and demo.sdc
+# together -- they must share a base name -- and update PROJECT in
+# scripts/compile_fpga.py.
+
+QUARTUS_VERSION = "18.1"
+PROJECT_REVISION = "demo"

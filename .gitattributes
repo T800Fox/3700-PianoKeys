@@ -1,0 +1,35 @@
+# **Normalise line endings to LF everywhere.** This solves two problems:
+# 1) Without normalisation, a group with a mix of Windows and Mac/Linux
+#    machines eventually commits a file with the other platform's line endings
+#    and git reports every single line of it as changed -- which buries the
+#    one line that actually changed and makes the diff useless as evidence of
+#    who did what.
+# 2) Pinning eol=lf stops Windows git printing a screenful of "LF will be
+#    replaced by CRLF" warnings the first time it looks at the files.
+# Every tool used here (Quartus, ModelSim, Verilator, Python, any modern
+# editor) is happy with LF files on every platform.
+* text=auto eol=lf
+
+# Explicitly text, so diffs and merges work properly:
+*.v      text eol=lf
+*.sv     text eol=lf
+*.sdc    text eol=lf
+*.qpf    text eol=lf
+*.qsf    text eol=lf
+*.md     text eol=lf
+*.py     text eol=lf
+# A .sh file with CRLF endings also fails to run on Linux or macOS with
+# "bad interpreter: ...^M":
+*.sh     text eol=lf
+
+# Explicitly binary, so git never tries to merge or diff them:
+*.sof    binary
+*.pof    binary
+*.qar    binary
+*.fst    binary
+*.png    binary
+*.pdf    binary
+
+# A .vcd waveform is actually ASCII text, so it is not marked binary -- but a
+# diff of one is thousands of unreadable value-change lines, so turn diffs off.
+*.vcd    -diff
