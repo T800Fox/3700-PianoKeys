@@ -80,3 +80,8 @@ Thumbs.db
 *.swp
 *~
 .vscode/settings.json
+
+course_material/
+reaction_time_modules/
+AGENTS.md
+CURRENT_STATUS.md
