@@ -3,50 +3,38 @@
 module tb_lane_fsm;
 
     localparam COUNTDOWN_WIDTH    = 4;
-    localparam HIT_WINDOW_TICKS   = 5;
-    localparam PERFECT_START_TICK = 2;
-    localparam PERFECT_END_TICK   = 4;
+    localparam SUBBEATS_PER_BEAT  = 6;
+    localparam WINDOW_HALF_TICKS  = 3;
+    localparam PERFECT_START_TICK = 5;
+    localparam PERFECT_END_TICK   = 7;
     localparam HIT_FLASH_TICKS    = 3;
 
-    logic clk = 0;
-    logic reset;
-    logic beat_tick;
-    logic subbeat_tick;
-    logic press_pulse;
-    logic spawn;
-    logic [COUNTDOWN_WIDTH-1:0] spawn_countdown;
+    localparam logic [1:0] QUALITY_PERFECT = 2'b00;
+    localparam logic [1:0] QUALITY_NORMAL  = 2'b01;
+    localparam logic [1:0] QUALITY_POOR    = 2'b10;
+    localparam logic [1:0] QUALITY_BAD     = 2'b11;
 
-    logic display_active;
+    logic clk = 0;
+    logic reset, beat_tick, subbeat_tick, press_pulse, spawn;
+    logic [COUNTDOWN_WIDTH-1:0] spawn_countdown;
+    logic ready, display_active, quality_valid, spawn_rejected_pulse, hit_led;
     logic [COUNTDOWN_WIDTH-1:0] display_value;
-    logic normal_hit_pulse;
-    logic perfect_hit_pulse;
-    logic miss_pulse;
-    logic bad_press_pulse;
-    logic spawn_rejected_pulse;
-    logic hit_led;
+    logic [1:0] hit_quality;
 
     lane_fsm #(
         .COUNTDOWN_WIDTH(COUNTDOWN_WIDTH),
-        .HIT_WINDOW_TICKS(HIT_WINDOW_TICKS),
+        .SUBBEATS_PER_BEAT(SUBBEATS_PER_BEAT),
+        .WINDOW_HALF_TICKS(WINDOW_HALF_TICKS),
         .PERFECT_START_TICK(PERFECT_START_TICK),
         .PERFECT_END_TICK(PERFECT_END_TICK),
         .HIT_FLASH_TICKS(HIT_FLASH_TICKS)
     ) dut (
-        .clk(clk),
-        .reset(reset),
-        .beat_tick(beat_tick),
-        .subbeat_tick(subbeat_tick),
-        .press_pulse(press_pulse),
-        .spawn(spawn),
-        .spawn_countdown(spawn_countdown),
-        .display_active(display_active),
-        .display_value(display_value),
-        .normal_hit_pulse(normal_hit_pulse),
-        .perfect_hit_pulse(perfect_hit_pulse),
-        .miss_pulse(miss_pulse),
-        .bad_press_pulse(bad_press_pulse),
-        .spawn_rejected_pulse(spawn_rejected_pulse),
-        .hit_led(hit_led)
+        .clk(clk), .reset(reset), .beat_tick(beat_tick),
+        .subbeat_tick(subbeat_tick), .press_pulse(press_pulse),
+        .spawn(spawn), .spawn_countdown(spawn_countdown), .ready(ready),
+        .display_active(display_active), .display_value(display_value),
+        .hit_quality(hit_quality), .quality_valid(quality_valid),
+        .spawn_rejected_pulse(spawn_rejected_pulse), .hit_led(hit_led)
     );
 
     always #10 clk = ~clk;
@@ -63,173 +51,176 @@ module tb_lane_fsm;
     end
 
     task automatic apply_reset;
-        @(negedge clk);
-        reset = 1'b1;
+        @(negedge clk) reset = 1'b1;
         repeat (2) @(posedge clk);
         #1;
-        @(negedge clk);
-        reset = 1'b0;
+        @(negedge clk) reset = 1'b0;
     endtask
 
     task automatic request_spawn(input logic [COUNTDOWN_WIDTH-1:0] value);
         @(negedge clk);
         spawn_countdown = value;
         spawn = 1'b1;
-        @(posedge clk);
-        #1;
-        @(negedge clk);
-        spawn = 1'b0;
+        @(posedge clk); #1;
+        @(negedge clk) spawn = 1'b0;
     endtask
 
     task automatic pulse_beat;
-        @(negedge clk);
-        beat_tick = 1'b1;
-        @(posedge clk);
-        #1;
-        @(negedge clk);
-        beat_tick = 1'b0;
+        @(negedge clk) beat_tick = 1'b1;
+        @(posedge clk); #1;
+        @(negedge clk) beat_tick = 1'b0;
     endtask
 
     task automatic pulse_subbeat;
-        @(negedge clk);
-        subbeat_tick = 1'b1;
-        @(posedge clk);
-        #1;
-        @(negedge clk);
-        subbeat_tick = 1'b0;
+        @(negedge clk) subbeat_tick = 1'b1;
+        @(posedge clk); #1;
+        @(negedge clk) subbeat_tick = 1'b0;
+    endtask
+
+    task automatic advance_subbeats(input integer count);
+        integer i;
+        for (i = 0; i < count; i = i + 1)
+            pulse_subbeat();
     endtask
 
     task automatic press_key;
-        @(negedge clk);
-        press_pulse = 1'b1;
-        @(posedge clk);
-        #1;
-        @(negedge clk);
-        press_pulse = 1'b0;
-    endtask
-
-    task automatic enter_hit_window(input logic [COUNTDOWN_WIDTH-1:0] value);
-        request_spawn(value);
-        while (display_value != 0) begin
-            pulse_beat();
-        end
+        @(negedge clk) press_pulse = 1'b1;
+        @(posedge clk); #1;
+        @(negedge clk) press_pulse = 1'b0;
     endtask
 
     initial begin : test_cases
-        reset           = 1'b0;
-        beat_tick       = 1'b0;
-        subbeat_tick    = 1'b0;
-        press_pulse     = 1'b0;
-        spawn           = 1'b0;
+        reset = 0;
+        beat_tick = 0;
+        subbeat_tick = 0;
+        press_pulse = 0;
+        spawn = 0;
         spawn_countdown = '0;
 
-        // Test 1: reset establishes an inactive, blank lane.
         apply_reset();
-        if (display_active || display_value !== 0 || hit_led)
+        if (!ready || display_active || display_value !== 0 || quality_valid || hit_led)
             $fatal(1, "FAIL test 1: reset did not clear the lane");
         $display("PASS test 1: reset clears the lane");
 
-        // Test 2: invalid notes and inactive presses are rejected.
         request_spawn(0);
-        if (!spawn_rejected_pulse || display_active)
+        if (!spawn_rejected_pulse || !ready)
             $fatal(1, "FAIL test 2: zero countdown was not rejected");
         @(posedge clk); #1;
         if (spawn_rejected_pulse)
-            $fatal(1, "FAIL test 2: rejection event lasted more than one clock");
+            $fatal(1, "FAIL test 2: rejection event exceeded one clock");
         press_key();
-        if (!bad_press_pulse || display_active)
-            $fatal(1, "FAIL test 2: inactive press was not penalised");
-        $display("PASS test 2: invalid spawns and inactive presses are penalised");
+        if (!quality_valid || hit_quality !== QUALITY_BAD || !ready)
+            $fatal(1, "FAIL test 2: inactive press was not bad");
+        @(posedge clk); #1;
+        if (quality_valid)
+            $fatal(1, "FAIL test 2: quality_valid exceeded one clock");
+        $display("PASS test 2: invalid spawn and inactive press are handled");
 
-        // Test 3: countdown changes only on beat ticks and reaches zero.
         apply_reset();
         request_spawn(3);
-        if (!display_active || display_value !== 3)
-            $fatal(1, "FAIL test 3: valid spawn was not accepted");
+        if (ready || !display_active || display_value !== 3)
+            $fatal(1, "FAIL test 3: countdown 3 was not accepted");
         repeat (2) @(posedge clk); #1;
         if (display_value !== 3)
-            $fatal(1, "FAIL test 3: countdown changed without a beat tick");
+            $fatal(1, "FAIL test 3: countdown changed without beat_tick");
         pulse_beat();
         if (display_value !== 2)
-            $fatal(1, "FAIL test 3: first beat gave %0d, expected 2", display_value);
+            $fatal(1, "FAIL test 3: first beat did not produce 2");
         pulse_beat();
         if (display_value !== 1)
-            $fatal(1, "FAIL test 3: second beat gave %0d, expected 1", display_value);
-        pulse_beat();
-        if (!display_active || display_value !== 0)
-            $fatal(1, "FAIL test 3: lane did not enter the zero window");
-        $display("PASS test 3: countdown advances on beat ticks");
+            $fatal(1, "FAIL test 3: second beat did not begin judgement at 1");
+        $display("PASS test 3: countdown enters judgement on a beat");
 
-        // Test 4: a hit at age zero is normal and starts the LED flash.
-        press_key();
-        if (!normal_hit_pulse || perfect_hit_pulse || display_active || !hit_led)
-            $fatal(1, "FAIL test 4: age-zero press was not a normal hit");
-        @(posedge clk); #1;
-        if (normal_hit_pulse)
-            $fatal(1, "FAIL test 4: normal-hit event lasted more than one clock");
-        pulse_subbeat();
-        if (!hit_led) $fatal(1, "FAIL test 4: LED flash ended one tick early");
-        pulse_subbeat();
-        if (!hit_led) $fatal(1, "FAIL test 4: LED flash ended two ticks early");
-        pulse_subbeat();
-        if (hit_led) $fatal(1, "FAIL test 4: LED flash exceeded configured duration");
-        $display("PASS test 4: normal hit and LED duration are correct");
-
-        // Test 5: perfect timing uses [start, end) boundaries.
-        apply_reset();
-        enter_hit_window(1);
-        pulse_subbeat();
-        pulse_subbeat();
-        press_key();
-        if (!perfect_hit_pulse || normal_hit_pulse)
-            $fatal(1, "FAIL test 5: perfect-window start was not inclusive");
-
-        apply_reset();
-        enter_hit_window(1);
-        repeat (4) pulse_subbeat();
-        press_key();
-        if (!normal_hit_pulse || perfect_hit_pulse)
-            $fatal(1, "FAIL test 5: perfect-window end was not exclusive");
-        $display("PASS test 5: perfect-window boundaries are correct");
-
-        // Test 6: an early press forfeits the active note.
         apply_reset();
         request_spawn(4);
         press_key();
-        if (!bad_press_pulse || display_active)
-            $fatal(1, "FAIL test 6: early press did not forfeit the note");
-        if (normal_hit_pulse || perfect_hit_pulse)
-            $fatal(1, "FAIL test 6: early press incorrectly scored");
-        $display("PASS test 6: early press forfeits the note");
+        if (!quality_valid || hit_quality !== QUALITY_BAD || !ready || hit_led)
+            $fatal(1, "FAIL test 4: press earlier than 1 was not bad");
+        $display("PASS test 4: press earlier than 1 is bad");
 
-        // Test 7: occupied lanes reject new notes without replacing them.
+        apply_reset();
+        request_spawn(1);
+        press_key();
+        if (!quality_valid || hit_quality !== QUALITY_POOR || !ready || hit_led)
+            $fatal(1, "FAIL test 5: first half of 1 was not poor");
+        $display("PASS test 5: first half of 1 is poor");
+
+        apply_reset();
+        request_spawn(1);
+        advance_subbeats(3);
+        if (display_value !== 1)
+            $fatal(1, "FAIL test 6: display left 1 before target");
+        press_key();
+        if (!quality_valid || hit_quality !== QUALITY_NORMAL || !ready || !hit_led)
+            $fatal(1, "FAIL test 6: hit-window start was not normal");
+        $display("PASS test 6: normal window starts before target");
+
+        apply_reset();
+        request_spawn(1);
+        advance_subbeats(PERFECT_START_TICK);
+        if (display_value !== 1)
+            $fatal(1, "FAIL test 7: perfect start should display 1");
+        press_key();
+        if (!quality_valid || hit_quality !== QUALITY_PERFECT)
+            $fatal(1, "FAIL test 7: perfect start was not inclusive");
+
+        apply_reset();
+        request_spawn(1);
+        advance_subbeats(SUBBEATS_PER_BEAT);
+        if (display_value !== 0)
+            $fatal(1, "FAIL test 7: target did not change display to 0");
+        press_key();
+        if (!quality_valid || hit_quality !== QUALITY_PERFECT)
+            $fatal(1, "FAIL test 7: first subbeat of 0 was not perfect");
+
+        apply_reset();
+        request_spawn(1);
+        advance_subbeats(PERFECT_END_TICK);
+        press_key();
+        if (!quality_valid || hit_quality !== QUALITY_NORMAL)
+            $fatal(1, "FAIL test 7: perfect end was not exclusive");
+        $display("PASS test 7: perfect range straddles the target");
+
+        apply_reset();
+        request_spawn(1);
+        advance_subbeats(SUBBEATS_PER_BEAT);
+        if (display_value !== 0 || ready)
+            $fatal(1, "FAIL test 8: zero window did not begin at target");
+        advance_subbeats(WINDOW_HALF_TICKS - 1);
+        if (display_value !== 0 || ready)
+            $fatal(1, "FAIL test 8: zero disappeared before half a beat");
+        pulse_subbeat();
+        if (!ready || display_active || !quality_valid || hit_quality !== QUALITY_POOR)
+            $fatal(1, "FAIL test 8: expiry did not produce poor/miss");
+        $display("PASS test 8: miss resolves after half a beat of zero");
+
         apply_reset();
         request_spawn(4);
         request_spawn(2);
-        if (!spawn_rejected_pulse || display_value !== 4)
-            $fatal(1, "FAIL test 7: busy-lane spawn changed the current note");
-        $display("PASS test 7: busy lane rejects new notes");
+        if (!spawn_rejected_pulse || display_value !== 4 || ready)
+            $fatal(1, "FAIL test 9: busy spawn replaced the active note");
+        $display("PASS test 9: busy lane rejects new notes");
 
-        // Test 8: an unplayed zero window expires with one miss event.
         apply_reset();
-        enter_hit_window(1);
-        repeat (HIT_WINDOW_TICKS) pulse_subbeat();
-        if (!miss_pulse || display_active)
-            $fatal(1, "FAIL test 8: hit window did not expire as a miss");
-        @(posedge clk); #1;
-        if (miss_pulse)
-            $fatal(1, "FAIL test 8: miss event lasted more than one clock");
-        $display("PASS test 8: late note produces one miss event");
-
-        // Test 9: reset interrupts both an active note and LED flash.
-        apply_reset();
-        enter_hit_window(1);
+        request_spawn(1);
+        advance_subbeats(3);
         press_key();
-        if (!hit_led) $fatal(1, "FAIL test 9: setup hit did not light LED");
+        if (!hit_led) $fatal(1, "FAIL test 10: normal hit did not light LED");
+        advance_subbeats(HIT_FLASH_TICKS - 1);
+        if (!hit_led) $fatal(1, "FAIL test 10: hit LED ended early");
+        pulse_subbeat();
+        if (hit_led) $fatal(1, "FAIL test 10: hit LED lasted too long");
+        $display("PASS test 10: lane drives configured hit flash");
+
         apply_reset();
-        if (display_active || hit_led || display_value !== 0)
-            $fatal(1, "FAIL test 9: reset did not interrupt lane activity");
-        $display("PASS test 9: reset interrupts all lane activity");
+        request_spawn(1);
+        advance_subbeats(3);
+        press_key();
+        request_spawn(3);
+        apply_reset();
+        if (!ready || display_active || display_value !== 0 || hit_led || quality_valid)
+            $fatal(1, "FAIL test 11: reset did not clear all lane activity");
+        $display("PASS test 11: reset interrupts all lane activity");
 
         $display("ALL TESTS PASSED: tb_lane_fsm");
         $finish;
