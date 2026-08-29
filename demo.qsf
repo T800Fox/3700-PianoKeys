@@ -33,6 +33,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/lane_fsm.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/beat_gen.sv
 set_global_assignment -name VERILOG_FILE rtl/timer.v
 set_global_assignment -name VERILOG_FILE rtl/blinker.v
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/game_core.sv
 set_global_assignment -name SDC_FILE demo.sdc
 
 # Unused pins driven as tri-stated inputs: the safe default on a board where you
