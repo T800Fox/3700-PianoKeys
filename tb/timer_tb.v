@@ -83,7 +83,7 @@ module timer_tb;
         $display("t=%0d ns: timer_value=%0d", $time, timer_value); // Timer should resume counting down from 5 ms to 4 ms
         if (timer_value != 4) $warning("t=%0d ns: timer_value=%0d, but expected 4!",$time, timer_value);
 
+        $display("ALL TESTS PASSED: timer_tb");
         $finish();  // Finish the simulation.
     end
-$display("ALL TESTS PASSED: timer_tb");
 endmodule
