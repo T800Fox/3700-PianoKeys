@@ -28,6 +28,8 @@ set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
 
 # Design files -- add every source file you write to this list.
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/demo_top.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/hit_flash.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/lane_fsm.sv
 set_global_assignment -name VERILOG_FILE rtl/blinker.v
 set_global_assignment -name SDC_FILE demo.sdc
 
