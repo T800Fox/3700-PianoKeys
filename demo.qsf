@@ -28,9 +28,13 @@ set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
 
 # Design files -- add every source file you write to this list.
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/demo_top.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/button_conditioner.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/hit_flash.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/lane_fsm.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/switch_conditioner.sv
 set_global_assignment -name VERILOG_FILE rtl/blinker.v
+set_global_assignment -name VERILOG_FILE rtl/debounce.v
+set_global_assignment -name VERILOG_FILE rtl/synchroniser.v
 set_global_assignment -name SDC_FILE demo.sdc
 
 # Unused pins driven as tri-stated inputs: the safe default on a board where you
