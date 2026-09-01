@@ -5,7 +5,8 @@
 
     Building off Aditya's code in game_core.sv...
     I've had a crack at integrating in the display driver and the score 
-    handler modules. 
+    handler modules. Even though it's structured as a top level file, it 
+    should be simple to bring it back to a module if need be?
 
     When it comes to a point that we can start testing stuff on the board,
     I feel like the shout will be to comment out a lot of this stuff and 
@@ -36,7 +37,10 @@ module demo_top #(
     output logic [6:0] HEX5
 );
 
-    logic [(4*COUNTDOWN_WIDTH)-1:0] spawn_countdown;
+    logic [3:0] press_pulses;
+    logic [3:0] spawns;
+
+    logic [(4*COUNTDOWN_WIDTH)-1:0] spawn_countdowns;
 
     logic [3:0] readys;
     logic [3:0] display_actives;
@@ -46,8 +50,8 @@ module demo_top #(
     logic [7:0] hit_qualitys;
     logic [3:0] quality_valids;
 
-    logic [3:0] spawn_rejected_pulse;
-    logic [3:0] hit_led;
+    logic [3:0] spawn_rejected_pulses;
+    logic [3:0] hit_leds;
 
     logic beat_tick;
     logic subbeat_tick;
@@ -87,31 +91,31 @@ module demo_top #(
                 .beat_tick(beat_tick),
                 .subbeat_tick(subbeat_tick),
 
-                .press_pulse(press_pulse[i]),
-                .spawn(spawn[i]),
+                .press_pulse(press_pulses[i]),
+                .spawn(spawns[i]),
 
                 .spawn_countdown(
-                    spawn_countdown[
+                    spawn_countdowns[
                         i*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH
                     ]
                 ),
 
-                .ready(ready[i]),
-                .display_active(display_active[i]),
+                .ready(readys[i]),
+                .display_active(display_actives[i]),
 
                 .display_value(
-                    display_value[
+                    display_values[
                         i*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH
                     ]
                 ),
 
                 .hit_quality(
-                    hit_quality[i*2 +: 2]
+                    hit_qualitys[i*2 +: 2]
                 ),
 
-                .quality_valid(quality_valid[i]),
-                .spawn_rejected_pulse(spawn_rejected_pulse[i]),
-                .hit_led(hit_led[i])
+                .quality_valid(quality_valids[i]),
+                .spawn_rejected_pulse(spawn_rejected_pulses[i]),
+                .hit_led(hit_leds[i])
             );
 
         end
@@ -124,22 +128,22 @@ module demo_top #(
         .clk(CLOCK_50),
         .rst(reset),
 
-        .l_0_quality_valid(quality_valid[0]),
-        .l_0_quality_value(hit_quality[0*2 +: 2]),
+        .l_0_quality_valid(quality_valids[0]),
+        .l_0_quality_value(hit_qualitys[0*2 +: 2]),
 
-        .l_1_quality_valid(quality_valid[1]),
-        .l_1_quality_value(hit_quality[1*2 +: 2]),
+        .l_1_quality_valid(quality_valids[1]),
+        .l_1_quality_value(hit_qualitys[1*2 +: 2]),
 
-        .l_2_quality_valid(quality_valid[2]),
-        .l_2_quality_value(hit_quality[2*2 +: 2]),
+        .l_2_quality_valid(quality_valids[2]),
+        .l_2_quality_value(hit_qualitys[2*2 +: 2]),
 
-        .l_3_quality_valid(quality_valid[3]),
-        .l_3_quality_value(hit_quality[3*2 +: 2]),
+        .l_3_quality_valid(quality_valids[3]),
+        .l_3_quality_value(hit_qualitys[3*2 +: 2]),
 
         .score(game_score),
-        .enc_curr_state(encoded_multi_state)
+        .curr_multi_state(encoded_multi_state)
 
-    )
+    );
 
     // Display driver
     piano_keys_display u_game_display (
@@ -151,37 +155,22 @@ module demo_top #(
         .lane_2_value(display_values[2*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH]),
         .lane_3_value(display_values[3*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH]),
 
-        .lane_0_led(hit_led[0]),
-        .lane_1_led(hit_led[1]),
-        .lane_2_led(hit_led[2]),
-        .lane_3_led(hit_led[3]),
+        .lane_0_led(hit_leds[0]),
+        .lane_1_led(hit_leds[1]),
+        .lane_2_led(hit_leds[2]),
+        .lane_3_led(hit_leds[3]),
 
         .lane_0_HEX(HEX0),
         .lane_1_HEX(HEX1),
         .lane_2_HEX(HEX2),
         .lane_3_HEX(HEX3),
 
-        .lane_leds(LEDR[3:6]),
+        .lane_leds(LEDR[6:3]),
 
         .score_ones_HEX(HEX4),
         .score_tens_HEX(HEX5),
 
-        .score_multi_leds(LEDR[7:9])
+        .score_multi_leds(LEDR[9:7])
     );
-
-
-
-
-    // assign LEDR[0]   = heartbeat;
-    // assign LEDR[4:1] = ~KEY;    // Active low push button, so invert to drive LEDs
-    // assign LEDR[6:5] = SW[9:8];
-    // assign LEDR[9:7] = 3'b000;  // Assign every output bit, even unused ones
-
-    // assign HEX0 = ~SW[7:1];
-    // assign HEX1 = 7'b1111111;   // All ones = display off (active low)
-    // assign HEX2 = 7'b1111111;
-    // assign HEX3 = 7'b1111111;
-    // assign HEX4 = 7'b1111111;
-    // assign HEX5 = 7'b1111111;
 
 endmodule
