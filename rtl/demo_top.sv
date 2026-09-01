@@ -23,7 +23,8 @@ module demo_top #(
     parameter PERFECT_START_TICK = 5,
     parameter PERFECT_END_TICK   = 7,
     parameter HIT_FLASH_TICKS    = 4,
-    parameter MAX_SCORE          = 99
+    parameter MAX_SCORE          = 99,
+    parameter DIFFICULTY         = 1
 ) (
     input  logic       CLOCK_50,
     input  logic [3:0] KEY,
@@ -38,9 +39,9 @@ module demo_top #(
 );
 
     logic [3:0] press_pulses;
-    logic [3:0] spawns;
+    logic spawns[4];
 
-    logic [(4*COUNTDOWN_WIDTH)-1:0] spawn_countdowns;
+    logic [COUNTDOWN_WIDTH-1:0] spawn_countdowns [4];
 
     logic [3:0] readys;
     logic [3:0] display_actives;
@@ -71,6 +72,20 @@ module demo_top #(
         .beat_tick(beat_tick),
         .subbeat_tick(subbeat_tick)
     );
+
+
+    sequencer u_sequencer (
+            .clk(CLOCK_50), 
+            .beat_tick(beat_tick),
+            .start_button(press_pulses[0]), //Assuming this will be debounced sync-edge of buttons
+            .difficulty_ind(DIFFICULTY),
+            .lane_countdowns(spawn_countdowns),
+            .lane_resets(spawns),
+            .count_val() //CONNECT TO SEVEN SEG +need a display count flag to override value
+        );
+
+
+
 
     // Four independent piano tiles lanes
     genvar i;
