@@ -9,12 +9,14 @@ module sequencer (
     output reg [3:0] lane_countdowns [4],
     output reg lane_resets[4],
     output reg [3:0] count_val, //count-in for game
-    output wire game_active 
+    output wire game_active,
+    output wire count_active
 );
     //FSM
     typedef enum reg [1:0] {INIT, AWAITING_START, COUNT_IN, IN_GAME} state_type;
     state_type current_state, next_state;
     assign game_active = (current_state == IN_GAME);
+    assign count_active = (current_state == COUNT_IN);
 
     reg [11:0] lane_data [4][256]; //11:4 is delta-beat 3:0 is reset-value
     reg [11:0] sequence_data [256];
@@ -56,8 +58,9 @@ module sequencer (
     );
 
     initial begin
+    
         $readmemh("midi_data/gy.txt", sequence_data);
-
+        count_val = 0;
         //First element of sequence-data is number of notes (8-bit) and count in (4-bit)
         num_notes = sequence_data[0][11:4];
         count_in = sequence_data[0][3:0]; 

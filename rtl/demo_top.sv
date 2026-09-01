@@ -43,6 +43,9 @@ module demo_top #(
     logic reset;
     logic game_active;
     logic [3:0] lane_press_pulses;
+    logic count_active;
+    logic [3:0] count_val;
+
     assign lane_press_pulses = press_pulses & {4{game_active}};
     logic spawns[4];
 
@@ -103,8 +106,9 @@ module demo_top #(
             .difficulty_ind(DIFFICULTY),
             .lane_countdowns(spawn_countdowns),
             .lane_resets(spawns),
-            .count_val(), //CONNECT TO SEVEN SEG +need a display count flag to override value
-            .game_active(game_active) 
+            .count_val(count_val), //CONNECT TO SEVEN SEG +need a display count flag to override value
+            .game_active(game_active) ,
+            .count_active(count_active)
         );
 
 
@@ -176,16 +180,31 @@ module demo_top #(
         .curr_multi_state(encoded_multi_state)
 
     );
+    logic [3:0] lane_0_display;
+    logic [3:0] lane_1_display;
+    logic [3:0] lane_2_display;
+    logic [3:0] lane_3_display;
 
+    assign lane_0_display = count_active ? count_val :
+                            display_values[0*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH];
+
+    assign lane_1_display = count_active ? count_val :
+                            display_values[1*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH];
+
+    assign lane_2_display = count_active ? count_val :
+                            display_values[2*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH];
+
+    assign lane_3_display = count_active ? count_val :
+                            display_values[3*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH];
     // Display driver
     piano_keys_display u_game_display (
         .score_value(game_score),
         .score_multi(encoded_multi_state),
 
-        .lane_0_value(display_values[0*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH]),
-        .lane_1_value(display_values[1*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH]),
-        .lane_2_value(display_values[2*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH]),
-        .lane_3_value(display_values[3*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH]),
+        .lane_0_value(lane_0_display),
+        .lane_1_value(lane_1_display),
+        .lane_2_value(lane_2_display),
+        .lane_3_value(lane_3_display),
 
         .lane_0_led(hit_leds[0]),
         .lane_1_led(hit_leds[1]),
