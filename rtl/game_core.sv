@@ -20,7 +20,6 @@ module game_core #(
     // lane 3 = bits 15:12
     input  logic [(4*COUNTDOWN_WIDTH)-1:0] spawn_countdown,
 
-    output logic [3:0] ready,
     output logic [3:0] display_active,
     output logic [(4*COUNTDOWN_WIDTH)-1:0] display_value,
 
@@ -28,7 +27,6 @@ module game_core #(
     output logic [7:0] hit_quality,
     output logic [3:0] quality_valid,
 
-    output logic [3:0] spawn_rejected_pulse,
     output logic [3:0] hit_led,
 
     // expose for future modules??
@@ -76,7 +74,6 @@ module game_core #(
                     ]
                 ),
 
-                .ready(ready[i]),
                 .display_active(display_active[i]),
 
                 .display_value(
@@ -90,7 +87,6 @@ module game_core #(
                 ),
 
                 .quality_valid(quality_valid[i]),
-                .spawn_rejected_pulse(spawn_rejected_pulse[i]),
                 .hit_led(hit_led[i])
             );
 

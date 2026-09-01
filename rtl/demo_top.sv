@@ -25,7 +25,8 @@ module demo_top #(
     parameter HIT_FLASH_TICKS    = 4,
     parameter MAX_SCORE          = 99,
     parameter DIFFICULTY         = 1
-) (
+) 
+(
     input  logic       CLOCK_50,
     input  logic [3:0] KEY,
     input  logic [9:0] SW,
@@ -39,11 +40,11 @@ module demo_top #(
 );
 
     logic [3:0] press_pulses;
+    logic reset;
     logic spawns[4];
 
     logic [COUNTDOWN_WIDTH-1:0] spawn_countdowns [4];
 
-    logic [3:0] readys;
     logic [3:0] display_actives;
     logic [(4*COUNTDOWN_WIDTH)-1:0] display_values;
 
@@ -51,7 +52,6 @@ module demo_top #(
     logic [7:0] hit_qualitys;
     logic [3:0] quality_valids;
 
-    logic [3:0] spawn_rejected_pulses;
     logic [3:0] hit_leds;
 
     logic beat_tick;
@@ -60,6 +60,25 @@ module demo_top #(
     reg   [$clog2(MAX_SCORE)-1:0] game_score;
     reg   [1:0] encoded_multi_state;
 
+    // Condition SW0 into the game reset
+    switch_conditioner u_reset_conditioner (
+        .clk(CLOCK_50),
+        .switch(SW[0]),
+        .switch_state(reset)
+    );
+
+    // Condition the four push buttons
+    genvar b;
+    generate
+        for (b = 0; b < 4; b = b + 1) begin : GEN_BUTTONS
+            button_conditioner u_button_conditioner (
+                .clk(CLOCK_50),
+                .reset(reset),
+                .button(KEY[b]),
+                .press_pulse(press_pulses[b])
+            );
+        end
+    endgenerate
 
     // Shared timing generator
     beat_gen #(
@@ -109,13 +128,7 @@ module demo_top #(
                 .press_pulse(press_pulses[i]),
                 .spawn(spawns[i]),
 
-                .spawn_countdown(
-                    spawn_countdowns[
-                        i*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH
-                    ]
-                ),
-
-                .ready(readys[i]),
+                .spawn_countdown(spawn_countdowns[i]),
                 .display_active(display_actives[i]),
 
                 .display_value(
@@ -129,7 +142,7 @@ module demo_top #(
                 ),
 
                 .quality_valid(quality_valids[i]),
-                .spawn_rejected_pulse(spawn_rejected_pulses[i]),
+
                 .hit_led(hit_leds[i])
             );
 

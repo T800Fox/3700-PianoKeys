@@ -13,14 +13,12 @@ module tb_game_core;
     logic [3:0] spawn;
     logic [15:0] spawn_countdown;
 
-    logic [3:0] ready;
     logic [3:0] display_active;
     logic [15:0] display_value;
 
     logic [7:0] hit_quality;
     logic [3:0] quality_valid;
 
-    logic [3:0] spawn_rejected_pulse;
     logic [3:0] hit_led;
 
     logic beat_tick;
@@ -39,14 +37,12 @@ module tb_game_core;
         .spawn(spawn),
         .spawn_countdown(spawn_countdown),
 
-        .ready(ready),
         .display_active(display_active),
         .display_value(display_value),
 
         .hit_quality(hit_quality),
         .quality_valid(quality_valid),
 
-        .spawn_rejected_pulse(spawn_rejected_pulse),
         .hit_led(hit_led),
 
         .beat_tick(beat_tick),
