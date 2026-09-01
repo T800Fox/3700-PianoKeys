@@ -1,14 +1,17 @@
+`timescale 100ms/1ms
+
 
 
 module sequencer (
 
-    input clk, input beat_tick,
+    input clk, input beat_clk,
     input start_button, //Debounced button-state
     input [1:0] difficulty_ind, //Difficulty-index 0-3
     //Note data for each lane seperated (with random visibility applied)
     output reg [3:0] lane_countdowns [4],
     output reg lane_resets[4],
-    output reg [3:0] count_val //count-in for game
+    output reg [3:0] count_val, //count-in for game (display if non-zero)!!
+    output reg beat_clk_reset //reset signal for beat clock at start of game
 );
     //FSM
     typedef enum reg [1:0] {INIT, AWAITING_START, COUNT_IN, IN_GAME} state_type;
@@ -63,8 +66,6 @@ module sequencer (
         //Seccond element is tempo 8-bit (11:8 undef)
         tempo = sequence_data[1][7:0];
 
-        $display("num_notes = %d, count_in = %d, tempo = %d", num_notes, count_in, tempo);
-
         note_index = 2; //Skip the first element num_notes
 
         //Indexs for seperating events into lanes
@@ -79,8 +80,10 @@ module sequencer (
         diff_rng_bounds[2] = 4'd3;
         diff_rng_bounds[3] = 4'd1;
 
-        //Start init!!!!
-        current_state = INIT;
+        //Start waiting!!!!
+        current_state = AWAITING_START;
+
+        beat_clk_reset = 0;
 
     end
     
@@ -92,13 +95,14 @@ module sequencer (
         case (current_state)
             INIT: begin
                     if (note_index >= num_notes + 2) begin // +2 as first 2 index are skipped 
-                        next_state = AWAITING_START;
+                        next_state = COUNT_IN;
+                        
                     end
                 end
 
             AWAITING_START: begin
                     if (start_button) begin
-                        next_state = COUNT_IN;
+                        next_state = INIT;
                     end
                 end
 
@@ -110,7 +114,7 @@ module sequencer (
 
             IN_GAME: begin
                     //Check if all lanes are complete - game over (state change)
-                    if (lanes_completed == 4 && 0) begin
+                    if (lanes_completed == 4) begin
                         next_state = AWAITING_START;
                     end
                 end
@@ -167,12 +171,36 @@ module sequencer (
         current_state <= next_state;
 
         case (current_state)
+
+            AWAITING_START : begin
+                if (next_state == INIT) begin
+                    lane_index[0] <= 0;
+                    lane_index[1] <= 0;
+                    lane_index[2] <= 0;
+                    lane_index[3] <= 0;
+
+                    note_index <= 2; //Skip the first element num_notes
+                    
+                end
+            end
+
             INIT: begin
-                if (next_state == AWAITING_START) begin
+                if (next_state == COUNT_IN) begin
+                    //upon transition, set count-down to num of beats in bar - read from midi
+                    count_val <= count_in;
+
+                    //Reset-lane index
+                    lane_index[0] <= 0;
+                    lane_index[1] <= 0;
+                    lane_index[2] <= 0;
+                    lane_index[3] <= 0;
+
+                    //Tracks score-time for game playback 
+                    score_time_playback <= 0;
+
                     //Index of each lane_index after init is stored as length before reset
                     lane_len <= lane_index;
-                    $display("%d, %d, %d, %d", lane_index[0], lane_index[1], lane_index[2], lane_index[3]);
-                    $display("Awaiting start");
+                    $display("count in");
                 end
 
                 //Dont take step in itteration if rand isn't valid
@@ -186,44 +214,28 @@ module sequencer (
 
                     lane_index[lane] <= lane_index[lane] + 1; 
 
-
-                    //$display("lower: %d upper: %d, rand: %d", rand_range[0], rand_range[1], reset_val);
                     $display("%0d: score_time %0d count: %0d", lane, score_time, reset_val);
                 end 
             end
 
-            AWAITING_START : begin
-                //$display("awaiting start");
-                if (next_state == COUNT_IN) begin
-                    //upon transition, set count-down to num of beats in bar - read from midi
-                    count_val <= count_in;
-
-                    //Reset-lane index
-                    lane_index[0] <= 0;
-                    lane_index[1] <= 0;
-                    lane_index[2] <= 0;
-                    lane_index[3] <= 0;
-
-                    //Tracks score-time for game playback 
-                    score_time_playback <= 0;
-                    $display("Count in");
-                end
-            end
 
             COUNT_IN : begin
-                if (beat_tick) begin
+                if (beat_clk) begin
                     count_val <= count_val - 1;
                     $display("counting %d", count_val);
                 end
 
                 if (next_state == IN_GAME) begin
                     $display("game start");
+                    beat_clk_reset <= 1; //Generate one clk tick reset signal for beat clock
                 end
             end
 
             IN_GAME : begin
+                beat_clk_reset <= 0;
+
                 //beat clk aligns with clk and has the same period 
-                if (beat_tick) begin
+                if (beat_clk) begin
                     for (lane_i = 0; lane_i < 4; lane_i = lane_i + 1) begin
                         //Increment lane-index with reset-signals
                         if (lane_resets[lane_i]) begin

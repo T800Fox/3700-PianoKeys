@@ -81,10 +81,21 @@ module demo_top #(
             .difficulty_ind(DIFFICULTY),
             .lane_countdowns(spawn_countdowns),
             .lane_resets(spawns),
-            .count_val() //CONNECT TO SEVEN SEG +need a display count flag to override value
+            .count_val(), //CONNECT TO SEVEN SEG +need a display count flag to override value (override if nonzero)
+            .beat_clk_reset(reset)
         );
 
+module sequencer (
 
+    input clk, input beat_clk,
+    input start_button, //Debounced button-state
+    input [1:0] difficulty_ind, //Difficulty-index 0-3
+    //Note data for each lane seperated (with random visibility applied)
+    output reg [3:0] lane_countdowns [4],
+    output reg lane_resets[4],
+    output reg [3:0] count_val, //count-in for game (display if non-zero)!!
+    output reg beat_clk_reset //reset signal for beat clock at start of game
+);
 
 
     // Four independent piano tiles lanes
