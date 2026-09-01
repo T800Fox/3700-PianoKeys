@@ -41,6 +41,9 @@ module demo_top #(
 
     logic [3:0] press_pulses;
     logic reset;
+    logic game_active;
+    logic [3:0] lane_press_pulses;
+    assign lane_press_pulses = press_pulses & {4{game_active}};
     logic spawns[4];
 
     logic [COUNTDOWN_WIDTH-1:0] spawn_countdowns [4];
@@ -100,7 +103,8 @@ module demo_top #(
             .difficulty_ind(DIFFICULTY),
             .lane_countdowns(spawn_countdowns),
             .lane_resets(spawns),
-            .count_val() //CONNECT TO SEVEN SEG +need a display count flag to override value
+            .count_val(), //CONNECT TO SEVEN SEG +need a display count flag to override value
+            .game_active(game_active) 
         );
 
 
@@ -125,7 +129,7 @@ module demo_top #(
                 .beat_tick(beat_tick),
                 .subbeat_tick(subbeat_tick),
 
-                .press_pulse(press_pulses[i]),
+                .press_pulse(lane_press_pulses[i]),
                 .spawn(spawns[i]),
 
                 .spawn_countdown(spawn_countdowns[i]),

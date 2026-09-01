@@ -8,11 +8,13 @@ module sequencer (
     //Note data for each lane seperated (with random visibility applied)
     output reg [3:0] lane_countdowns [4],
     output reg lane_resets[4],
-    output reg [3:0] count_val //count-in for game
+    output reg [3:0] count_val, //count-in for game
+    output wire game_active 
 );
     //FSM
     typedef enum reg [1:0] {INIT, AWAITING_START, COUNT_IN, IN_GAME} state_type;
     state_type current_state, next_state;
+    assign game_active = (current_state == IN_GAME);
 
     reg [11:0] lane_data [4][256]; //11:4 is delta-beat 3:0 is reset-value
     reg [11:0] sequence_data [256];
