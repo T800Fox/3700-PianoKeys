@@ -1,7 +1,17 @@
 // demo_top.sv, scaffold demo top level.
-//
-// Reset is SW0, matching the Assignment 1 interface, where SW0 is the game
-// reset.
+
+/*
+    Module 'demo_top'
+
+    Building off Aditya's code in game_core.sv...
+    I've had a crack at integrating in the display driver and the score 
+    handler modules. 
+
+    When it comes to a point that we can start testing stuff on the board,
+    I feel like the shout will be to comment out a lot of this stuff and 
+    then slowly build it up?
+    
+*/
 
 module demo_top #(
     parameter COUNTDOWN_WIDTH    = 4,
@@ -11,7 +21,8 @@ module demo_top #(
     parameter WINDOW_HALF_TICKS  = 3,
     parameter PERFECT_START_TICK = 5,
     parameter PERFECT_END_TICK   = 7,
-    parameter HIT_FLASH_TICKS    = 4
+    parameter HIT_FLASH_TICKS    = 4,
+    parameter MAX_SCORE          = 99
 ) (
     input  logic       CLOCK_50,
     input  logic [3:0] KEY,
@@ -25,21 +36,24 @@ module demo_top #(
     output logic [6:0] HEX5
 );
 
-    logic [(4*COUNTDOWN_WIDTH)-1:0] spawn_countdown,
+    logic [(4*COUNTDOWN_WIDTH)-1:0] spawn_countdown;
 
-    logic [3:0] readys,
-    logic [3:0] display_actives,
-    logic [(4*COUNTDOWN_WIDTH)-1:0] display_values,
+    logic [3:0] readys;
+    logic [3:0] display_actives;
+    logic [(4*COUNTDOWN_WIDTH)-1:0] display_values;
 
     // two quality bits per lane
-    logic [7:0] hit_qualitys,
-    logic [3:0] quality_valids,
+    logic [7:0] hit_qualitys;
+    logic [3:0] quality_valids;
 
-    logic [3:0] spawn_rejected_pulse,
-    logic [3:0] hit_led,
+    logic [3:0] spawn_rejected_pulse;
+    logic [3:0] hit_led;
 
-    logic beat_tick,
-    logic subbeat_tick
+    logic beat_tick;
+    logic subbeat_tick;
+
+    reg   [$clog2(MAX_SCORE)-1:0] game_score;
+    reg   [1:0] encoded_multi_state;
 
 
     // Shared timing generator
@@ -103,20 +117,44 @@ module demo_top #(
         end
     endgenerate
 
+    // Score Module
+    score_handler #(
+        .MAX_SCORE(MAX_SCORE)
+    ) u_score (
+        .clk(CLOCK_50),
+        .rst(reset),
+
+        .l_0_quality_valid(quality_valid[0]),
+        .l_0_quality_value(hit_quality[0*2 +: 2]),
+
+        .l_1_quality_valid(quality_valid[1]),
+        .l_1_quality_value(hit_quality[1*2 +: 2]),
+
+        .l_2_quality_valid(quality_valid[2]),
+        .l_2_quality_value(hit_quality[2*2 +: 2]),
+
+        .l_3_quality_valid(quality_valid[3]),
+        .l_3_quality_value(hit_quality[3*2 +: 2]),
+
+        .score(game_score),
+        .enc_curr_state(encoded_multi_state)
+
+    )
+
     // Display driver
-    piano_keys_display DUT (
-        .score_value(score_value),
-        .score_multi(score_multi),
+    piano_keys_display u_game_display (
+        .score_value(game_score),
+        .score_multi(encoded_multi_state),
 
-        .lane_0_value(display_value[0*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH]),
-        .lane_1_value(display_value[1*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH]),
-        .lane_2_value(display_value[2*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH]),
-        .lane_3_value(display_value[3*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH]),
+        .lane_0_value(display_values[0*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH]),
+        .lane_1_value(display_values[1*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH]),
+        .lane_2_value(display_values[2*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH]),
+        .lane_3_value(display_values[3*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH]),
 
-        .lane_0_led(LEDR[3]),
-        .lane_1_led(LEDR[4]),
-        .lane_2_led(LEDR[5]),
-        .lane_3_led(LEDR[6]),
+        .lane_0_led(hit_led[0]),
+        .lane_1_led(hit_led[1]),
+        .lane_2_led(hit_led[2]),
+        .lane_3_led(hit_led[3]),
 
         .lane_0_HEX(HEX0),
         .lane_1_HEX(HEX1),
