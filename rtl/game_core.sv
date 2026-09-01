@@ -36,7 +36,6 @@ module game_core #(
     output logic subbeat_tick
 );
     //shared timing generator
-
     beat_gen #(
         .MS_PER_SUBBEAT(MS_PER_SUBBEAT),
         .SUBBEATS_PER_BEAT(SUBBEATS_PER_BEAT),
