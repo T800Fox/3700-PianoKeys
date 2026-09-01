@@ -186,16 +186,24 @@ module demo_top #(
     logic [3:0] lane_3_display;
 
     assign lane_0_display = count_active ? count_val :
-                            display_values[0*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH];
+                            (display_actives[0] ?
+                            display_values[0*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH] :
+                            4'd10);
 
     assign lane_1_display = count_active ? count_val :
-                            display_values[1*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH];
+                            (display_actives[1] ?
+                            display_values[1*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH] :
+                            4'd10);
 
     assign lane_2_display = count_active ? count_val :
-                            display_values[2*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH];
+                            (display_actives[2] ?
+                            display_values[2*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH] :
+                            4'd10);
 
     assign lane_3_display = count_active ? count_val :
-                            display_values[3*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH];
+                            (display_actives[3] ?
+                            display_values[3*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH] :
+                            4'd10);
     // Display driver
     piano_keys_display u_game_display (
         .score_value(game_score),
