@@ -1,34 +1,34 @@
-// `timescale 100ms/1ms
 
 
+module sequencer #(
+    parameter NUM_SONGS = 3, 
+    parameter SONG_MEM_SIZE = 256 //Num bits allocated to each song
+) (
 
-module sequencer (
-
-    input clk, beat_clk, // hard_reset,
+    input clk, input beat_clk,
     input start_button, //Debounced button-state
-    input reset,
-    input all_lanes_ready,
-    input [1:0] difficulty_ind, //Difficulty-index 0-3
+    input hard_reset,
+    input [1:0] difficulty_ind, //Difficulty-index 0-3 (clamped)
+    input [$clog2(NUM_SONGS) - 1:0] song_selection_ind, //Selection from X songs
     //Note data for each lane seperated (with random visibility applied)
     output reg [3:0] lane_countdowns [4],
     output reg lane_resets[4],
-    output reg [3:0] count_val, //count-in for game
-    output reg beat_clk_reset, //one-cycle beat alignment reset
-    output wire game_active,
-    output wire count_active
+    output reg [3:0] count_val, //count-in for game (display if non-zero)!!
+    output reg beat_clk_reset //reset signal for beat clock at start of game
+   
 );
     //FSM
-    typedef enum logic [1:0] {INIT, AWAITING_START, COUNT_IN, IN_GAME} state_type;
+    typedef enum reg [1:0] {INIT, AWAITING_START, COUNT_IN, IN_GAME} state_type;
     state_type current_state, next_state;
 
-    assign game_active  = (current_state == IN_GAME);
-    assign count_active = (current_state == COUNT_IN);
-
-    reg [11:0] lane_data [4][256]; //11:4 is delta-beat 3:0 is reset-value
-    reg [11:0] sequence_data [256];
+    reg [11:0] lane_data [4][SONG_MEM_SIZE]; //11:4 is delta-beat 3:0 is reset-value
+    reg [11:0] sequence_data [SONG_MEM_SIZE * NUM_SONGS]; //Raw sequence data of 4 songs (needs to be continuous mem)
     reg [7:0] num_notes;
     reg [3:0] count_in;
     reg [7:0] tempo;
+
+    wire [$clog2(SONG_MEM_SIZE * NUM_SONGS) - 1:0] song_offset_i; //Offset in sequence datas cont mem for song-selection
+    assign song_offset_i = song_selection_ind * SONG_MEM_SIZE;
 
     reg [7:0] note_index;
     reg [7:0] lane_index[4];
@@ -45,7 +45,8 @@ module sequencer (
     //Bounds of random-range for each difficulty-index (n+1 for upper-bound)
     reg [3:0] diff_rng_bounds [4];
     wire [1:0] clamped_diff;
-    assign clamped_diff = (difficulty_ind > 2) ? 2 : difficulty_ind;
+    assign clamped_diff = difficulty_ind > 2 ? 2 : difficulty_ind; //Clamp difficulty (no 3)
+
     wire [3:0] rand_range [2]; //Random-range input for rng (difficulty bounds clamped to delta-beat)
     assign rand_range[1] = diff_rng_bounds[clamped_diff] > delta_lane ? delta_lane : diff_rng_bounds[clamped_diff]; //Upper bound clamped to delta-beat
     assign rand_range[0] = diff_rng_bounds[clamped_diff+1] > delta_lane ? delta_lane : diff_rng_bounds[clamped_diff+1];
@@ -66,22 +67,10 @@ module sequencer (
     );
 
     initial begin
-        $readmemh("midi_data/gy.txt", sequence_data);
-
-        //First element of sequence-data is number of notes (8-bit) and count in (4-bit)
-        num_notes = sequence_data[0][11:4];
-        count_in = sequence_data[0][3:0];
-
-        //Seccond element is tempo 8-bit (11:8 undef)
-        tempo = sequence_data[1][7:0];
-
-        note_index = 2; //Skip the first element num_notes
-
-        //Indexs for seperating events into lanes
-        lane_index[0] = 0;
-        lane_index[1] = 0;
-        lane_index[2] = 0;
-        lane_index[3] = 0;
+        //Load all sequence data into ROM (has to be cont mem annoyingly)
+        $readmemh("midi_data/gy.txt", sequence_data, 0);
+        $readmemh("midi_data/jaspers_song.txt", sequence_data, 1*SONG_MEM_SIZE);
+        $readmemh("midi_data/twinkle.txt", sequence_data, 2*SONG_MEM_SIZE);
 
         //Random-range bounds for each difficulty (ascending difficulty)
         diff_rng_bounds[0] = 4'd9;
@@ -95,61 +84,64 @@ module sequencer (
         beat_clk_reset = 0;
 
     end
-
+    
     //FSM block
-    integer lane_i;
+    integer lane_i; 
     always @(*) begin
         next_state = current_state;
 
-        // if (hard_reset) begin
-        //     next_state = AWAITING_START;
-        // end
-        // else begin
-        case (current_state)
-            INIT: begin
-                    if (note_index >= num_notes + 2) begin // +2 as first 2 index are skipped
-                        next_state = COUNT_IN;
 
+        if (hard_reset) begin
+            next_state = AWAITING_START;
+        end 
+
+        else begin
+            case (current_state)
+                INIT: begin
+                        if (note_index >= num_notes + 2) begin // +2 as first 2 index are skipped 
+                            next_state = COUNT_IN;
+                            
+                        end
                     end
-                end
 
-            AWAITING_START: begin
-                    if (start_button) begin
-                        next_state = INIT;
+                AWAITING_START: begin
+                        if (start_button) begin
+                            next_state = INIT;
+                            $display("Starting init song %d", song_selection_ind);
+                        end
                     end
-                end
 
-            COUNT_IN: begin
-                    if (count_val == 0) begin
-                        next_state = IN_GAME;
+                COUNT_IN: begin
+                        if (count_val == 0) begin
+                            next_state = IN_GAME;
+                        end
                     end
-                end
 
-            IN_GAME: begin
-                    //Check if all lanes are complete - game over (state change)
-                    if ((lanes_completed == 4) && all_lanes_ready) begin
-                        next_state = AWAITING_START;
+                IN_GAME: begin
+                        //Check if all lanes are complete - game over (state change)
+                        if (lanes_completed == 5) begin
+                            next_state = AWAITING_START;
+                        end
                     end
-                end
 
-        endcase
-        // end
+            endcase
+        end
     end
 
 
     //Init logic
     always @(*) begin
-        lane = sequence_data[note_index][1:0];
-        delta_lane = sequence_data[note_index][11:4];
+        lane = sequence_data[song_offset_i + note_index][1:0];
+        delta_lane = sequence_data[song_offset_i + note_index][11:4];
 
-        prev_reset = lane_index[lane] != 0 ?
+        prev_reset = lane_index[lane] != 0 ? 
                     lane_data[lane][lane_index[lane] - 1][3:0] : 0;
     end
 
     //Seperated always block to make clear to verilator that there isn't a circular dependency (silly ting)
     always @(*) begin
-        score_time = delta_lane + prev_reset - reset_val +
-                    (lane_index[lane] != 0 ? lane_data[lane][ lane_index[lane] - 1][11:4] : 0 );
+        score_time = delta_lane + prev_reset - reset_val + 
+                    (lane_index[lane] != 0 ? lane_data[lane][ lane_index[lane] - 1][11:4] : 0 ); 
                     //Changed from delta to score-time to simplify playback
     end
 
@@ -157,17 +149,17 @@ module sequencer (
     always @(*) begin
         //Check each lanes next-event against current score-time
         lanes_completed = 0;
-
+        
 
         for (lane_i = 0; lane_i < 4; lane_i = lane_i + 1) begin
             lane_resets[lane_i] = 0;
             lane_countdowns[lane_i] = 4'h0;
-
+            
             //Check if end of lane's seq has been reached
             if (lane_index[lane_i] == lane_len[lane_i]) begin
                 lanes_completed = lanes_completed + 1;
-            end
-
+            end 
+            
             else begin
                 if (lane_data[lane_i][ lane_index[lane_i] ][11:4] == score_time_playback) begin
                     //Set appropriate reset-val to lane (asyncronous output sampled by lane module)
@@ -177,37 +169,35 @@ module sequencer (
             end
         end
     end
-
+    
 
     //Itterate through sequence_data and apply random display periods
     //(as seperate lane arrays)
     always @(posedge clk) begin
+        current_state <= next_state;
 
-        if (reset) begin
-            current_state <= AWAITING_START;
-            count_val <= 0;
-            beat_clk_reset <= 0;
-            note_index <= 2;
-            lane_index[0] <= 0;
-            lane_index[1] <= 0;
-            lane_index[2] <= 0;
-            lane_index[3] <= 0;
-            score_time_playback <= 0;
-        end
-        else begin
-            current_state <= next_state;
-
-            case (current_state)
+        case (current_state)
 
             AWAITING_START : begin
                 if (next_state == INIT) begin
+                    //Setup init!
+
+                    //First element of sequence-data is number of notes (8-bit) and count in (4-bit)
+                    num_notes <= sequence_data[song_offset_i][11:4];
+                    count_in <= sequence_data[song_offset_i][3:0]; 
+
+                    //Seccond element is tempo 8-bit (11:8 undef)
+                    tempo <= sequence_data[song_offset_i + 1][7:0];
+                    $display("tempo: %d", sequence_data[song_offset_i + 1][7:0]);
+                    $display("num notes: %d", sequence_data[song_offset_i][11:4]);
+
+                    note_index <= 2; //Skip the first element num_notes
+
+                    //Indexs for seperating events into lanes
                     lane_index[0] <= 0;
                     lane_index[1] <= 0;
                     lane_index[2] <= 0;
                     lane_index[3] <= 0;
-
-                    note_index <= 2; //Skip the first element num_notes
-
                 end
             end
 
@@ -222,7 +212,7 @@ module sequencer (
                     lane_index[2] <= 0;
                     lane_index[3] <= 0;
 
-                    //Tracks score-time for game playback
+                    //Tracks score-time for game playback 
                     score_time_playback <= 0;
 
                     //Index of each lane_index after init is stored as length before reset
@@ -234,15 +224,15 @@ module sequencer (
                 else if (rand_valid) begin
                     //Assign the score-time (11:4 slice of element) and reset value to appropriate lane
                     //11:4 is delta-beat 3:0 is reset-value
-                    lane_data[lane][ lane_index[lane] ] <= {score_time,
+                    lane_data[lane][ lane_index[lane] ] <= {score_time, 
                                                             reset_val};
 
                     note_index <= note_index + 1;
 
-                    lane_index[lane] <= lane_index[lane] + 1;
+                    lane_index[lane] <= lane_index[lane] + 1; 
 
                     $display("%0d: score_time %0d count: %0d", lane, score_time, reset_val);
-                end
+                end 
             end
 
 
@@ -261,7 +251,7 @@ module sequencer (
             IN_GAME : begin
                 beat_clk_reset <= 0;
 
-                //beat clk aligns with clk and has the same period
+                //beat clk aligns with clk and has the same period 
                 if (beat_clk) begin
                     for (lane_i = 0; lane_i < 4; lane_i = lane_i + 1) begin
                         //Increment lane-index with reset-signals
@@ -280,8 +270,7 @@ module sequencer (
                 end
 
             end
-            endcase
-        end
+        endcase
     end
 
 endmodule
