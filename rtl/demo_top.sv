@@ -118,7 +118,7 @@ module demo_top #(
             .start_button(press_pulses[0]), //Assuming this will be debounced sync-edge of buttons
             .reset(reset),
             .all_lanes_ready(all_lanes_ready),
-            .difficulty_ind(DIFFICULTY),
+            .difficulty_ind(SW[9:8]),
             .lane_countdowns(spawn_countdowns),
             .lane_resets(spawns),
             .count_val(count_val), //CONNECT TO SEVEN SEG +need a display count flag to override value
