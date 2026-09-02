@@ -1,33 +1,20 @@
-/*
-	Module 'score_handler'
-
-	Takes in quality value and valid pairs.
-	Whenever a valid signal goes high the pairs value and valid
-	signals get demuxed and fed into the multiplier state machine.
-	Multiplier state machine updates and spits out a multiplier value.
-
-	Score is then updates like so...
-		PERFECT		-> add to score w/ multiplier @ enforce ceil of MAX_SCORE
-		NORMAL 		-> add to score w/ multiplier @ enforce ceil of MAX_SCORE
-		POOR		-> no change to score
-		BAD			-> remove 1 from score @ enforce floor of 0
-*/
-
 module score_handler #(
-	parameter MAX_SCORE=99
+	parameter MAX_SCORE=99,
+	parameter CONSEC_PERFECT_FOR_MOVE_TO_X2=2,
+	parameter CONSEC_PERFECT_FOR_MOVE_TO_X4=4
 ) (
 	input logic			clk, rst,
 	input logic			l_0_quality_valid,
-	input logic [1:0] 	l_0_quality_value,
+	input logic [1:0] l_0_quality_value,
 	
 	input logic			l_1_quality_valid,
-	input logic [1:0] 	l_1_quality_value,
+	input logic [1:0] l_1_quality_value,
 	
 	input logic			l_2_quality_valid,
-	input logic [1:0] 	l_2_quality_value,
+	input logic [1:0] l_2_quality_value,
 	
 	input logic			l_3_quality_valid,
-	input logic [1:0] 	l_3_quality_value,
+	input logic [1:0] l_3_quality_value,
 	
 	output reg [$clog2(MAX_SCORE)-1:0] score,
 	output reg  [1:0] curr_multi_state
@@ -42,7 +29,10 @@ module score_handler #(
 	logic 	[2:0] 	multi_fsm_multiplier;
 	
 
-	score_multiplier_fsm multi_fsm (
+	score_multiplier_fsm #(
+		.CONSEC_PERFECT_TO_2(CONSEC_PERFECT_FOR_MOVE_TO_X2),
+		.CONSEC_PERFECT_TO_4(CONSEC_PERFECT_FOR_MOVE_TO_X4)
+	) u_multi_fsm (
 		.clk(clk),
 		.rst(rst),
 		.reaction_valid(multi_fsm_quality_valid),
@@ -68,13 +58,19 @@ module score_handler #(
 		endcase
 	end
 
-
+	// PERFECT	-> add to score w/ multiplier @ enforce ceil of MAX_SCORE
+	// NORMAL 	-> add 1 to score @ enforce ceil of MAX_SCORE
+	// POOR		-> no change to score
+	// BAD		-> remove 1 from score @ enforce floor of 0
 	always_ff @(posedge clk) begin : scoreUpdateLogic
 		if (rst) score <= 0;
 
 		if (multi_fsm_quality_valid) begin			
-			if (multi_fsm_quality_input == QUALITY_PERFECT || multi_fsm_quality_input == QUALITY_NORMAL) begin
+			if (multi_fsm_quality_input == QUALITY_PERFECT) begin
 				score <= (score + 1 * multi_fsm_multiplier >= MAX_SCORE) ? MAX_SCORE : score + 1 * multi_fsm_multiplier;
+			end
+			else if (multi_fsm_quality_input == QUALITY_NORMAL) begin
+				score <= (score + 1 >= MAX_SCORE) ? MAX_SCORE : score + 1;
 			end
 			else if (multi_fsm_quality_input == QUALITY_BAD) begin
 				score <= (score == 0) ? 0 : score - 1;

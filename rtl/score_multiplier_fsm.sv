@@ -1,20 +1,3 @@
-/*
-	Module 'score_multiplier_fsm'
-
-	Keeps track of the player's reactions during the game, 
-	adjusts how a score gets multiplied accordingly.
-
-	Currently there are 3 levels, with space for 1 more....
-		X1
-		X2
-		X4
-	
-	Consecutive perfect reactions move player up to next state.
-	Normal reactions keep the same state.
-	Poor and bad reactions move the player back to X1.
-*/
-
-
 module score_multiplier_fsm #(
 	parameter CONSEC_PERFECT_TO_2=2,
 	parameter CONSEC_PERFECT_TO_4=4

@@ -23,7 +23,11 @@ module demo_top #(
     parameter PERFECT_START_TICK = 5,
     parameter PERFECT_END_TICK   = 7,
     parameter HIT_FLASH_TICKS    = 4,
+
     parameter MAX_SCORE          = 99,
+    parameter CONSEC_PERF_FOR_X2 = 1,
+    parameter CONSEC_PERF_FOR_X4 = 2,
+
     parameter DIFFICULTY         = 1
 ) (
     input  logic       CLOCK_50,
@@ -162,7 +166,9 @@ module demo_top #(
 
     // Score Module
     score_handler #(
-        .MAX_SCORE(MAX_SCORE)
+        .MAX_SCORE(MAX_SCORE),
+        .CONSEC_PERFECT_FOR_MOVE_TO_X2(CONSEC_PERF_FOR_X2),
+        .CONSEC_PERFECT_FOR_MOVE_TO_X4(CONSEC_PERF_FOR_X4)
     ) u_score (
         .clk(CLOCK_50),
         .rst(reset),
