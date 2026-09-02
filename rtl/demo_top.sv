@@ -45,8 +45,16 @@ module demo_top #(
     logic [3:0] lane_press_pulses;
     logic count_active;
     logic [3:0] count_val;
+    logic sequencer_beat_reset;
+    logic beat_reset;
 
     assign lane_press_pulses = press_pulses & {4{game_active}};
+
+    // Keep musical timing stopped until the count-in begins.
+    assign beat_reset =
+        reset |
+        sequencer_beat_reset |
+        ~(count_active | game_active);
     logic spawns[4];
 
     logic [COUNTDOWN_WIDTH-1:0] spawn_countdowns [4];
@@ -93,7 +101,7 @@ module demo_top #(
         .CLKS_PER_MS(CLKS_PER_MS)
     ) u_beat_gen (
         .clk(CLOCK_50),
-        .reset(reset),
+        .reset(beat_reset),
         .beat_tick(beat_tick),
         .subbeat_tick(subbeat_tick)
     );
@@ -101,12 +109,14 @@ module demo_top #(
 
     sequencer u_sequencer (
             .clk(CLOCK_50), 
-            .beat_tick(beat_tick),
+            .beat_clk(beat_tick),
             .start_button(press_pulses[0]), //Assuming this will be debounced sync-edge of buttons
+            .reset(reset),
             .difficulty_ind(DIFFICULTY),
             .lane_countdowns(spawn_countdowns),
             .lane_resets(spawns),
             .count_val(count_val), //CONNECT TO SEVEN SEG +need a display count flag to override value
+            .beat_clk_reset(sequencer_beat_reset),
             .game_active(game_active) ,
             .count_active(count_active)
         );

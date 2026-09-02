@@ -43,7 +43,7 @@ set_global_assignment -name SYSTEMVERILOG_FILE rtl/score_multiplier_fsm.sv
 set_global_assignment -name VERILOG_FILE rtl/piano_keys_display.v
 set_global_assignment -name VERILOG_FILE rtl/seven_seg.v
 set_global_assignment -name VERILOG_FILE rtl/rng.v
-set_global_assignment -name VERILOG_FILE rtl/sequencer.v
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/sequencer.sv
 set_global_assignment -name SDC_FILE demo.sdc
 
 # Unused pins driven as tri-stated inputs: the safe default on a board where you
