@@ -75,11 +75,24 @@ module demo_top #(
         .subbeat_tick(subbeat_tick)
     );
 
+    // Debounced Buttons
+    genvar i;
+    generate
+        for (i = 0; i < 4; i = i + 1) begin : GEN_BUTTONS
+            button_conditioner u_button (
+                .clk(CLOCK_50),
+                .reset(reset),
+                .button(KEY[i]),
+                .press_pulse(press_pulses[i])
+            );
+        end
+    endgenerate
 
+    // MiDi Sequencer
     sequencer u_sequencer (
         .clk(CLOCK_50), 
         .beat_clk(beat_tick),
-        .start_button(SW[0]), //Assuming this will be debounced sync-edge of buttons
+        .start_button(press_pulses[0]), //Assuming this will be debounced sync-edge of buttons
         .difficulty_ind(DIFFICULTY),
         .lane_countdowns(spawn_countdowns),
         .lane_resets(spawns),
@@ -101,7 +114,7 @@ module demo_top #(
 
 
     // Four independent piano tiles lanes
-    genvar i;
+    // genvar i;
     generate
         for (i = 0; i < 4; i = i + 1) begin : GEN_LANES
 
