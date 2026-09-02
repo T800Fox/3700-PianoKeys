@@ -64,8 +64,7 @@ module score_handler #(
 	// BAD		-> remove 1 from score @ enforce floor of 0
 	always_ff @(posedge clk) begin : scoreUpdateLogic
 		if (rst) score <= 0;
-
-		if (multi_fsm_quality_valid) begin			
+		else if (multi_fsm_quality_valid) begin			
 			if (multi_fsm_quality_input == QUALITY_PERFECT) begin
 				score <= (score + 1 * multi_fsm_multiplier >= MAX_SCORE) ? MAX_SCORE : score + 1 * multi_fsm_multiplier;
 			end

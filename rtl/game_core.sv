@@ -73,9 +73,6 @@ module game_core #(
                         i*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH
                     ]
                 ),
-
-                .display_active(display_active[i]),
-
                 .display_value(
                     display_value[
                         i*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH
@@ -92,5 +89,16 @@ module game_core #(
 
         end
     endgenerate
+
+    // New lane_fsm encodes an inactive/blank lane as value 10.
+    // Keep display_active here for backwards compatibility with tb_game_core.
+    assign display_active[0] =
+        (display_value[0*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH] != 4'd10);
+    assign display_active[1] =
+        (display_value[1*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH] != 4'd10);
+    assign display_active[2] =
+        (display_value[2*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH] != 4'd10);
+    assign display_active[3] =
+        (display_value[3*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH] != 4'd10);
 
 endmodule

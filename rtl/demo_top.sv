@@ -42,13 +42,20 @@ module demo_top #(
     logic [3:0] press_pulses;
     logic reset;
     logic game_active;
+    logic new_game_pulse;
+    logic score_reset;
     logic [3:0] lane_press_pulses;
+    logic [3:0] lane_ready;
+    logic all_lanes_ready;
     logic count_active;
     logic [3:0] count_val;
     logic sequencer_beat_reset;
     logic beat_reset;
 
     assign lane_press_pulses = press_pulses & {4{game_active}};
+    assign new_game_pulse = press_pulses[0] & ~(game_active | count_active);
+    assign score_reset = reset | new_game_pulse;
+    assign all_lanes_ready = &lane_ready;
 
     // Keep musical timing stopped until the count-in begins.
     assign beat_reset =
@@ -58,8 +65,6 @@ module demo_top #(
     logic spawns[4];
 
     logic [COUNTDOWN_WIDTH-1:0] spawn_countdowns [4];
-
-    logic [3:0] display_actives;
     logic [(4*COUNTDOWN_WIDTH)-1:0] display_values;
 
     // two quality bits per lane
@@ -112,6 +117,7 @@ module demo_top #(
             .beat_clk(beat_tick),
             .start_button(press_pulses[0]), //Assuming this will be debounced sync-edge of buttons
             .reset(reset),
+            .all_lanes_ready(all_lanes_ready),
             .difficulty_ind(DIFFICULTY),
             .lane_countdowns(spawn_countdowns),
             .lane_resets(spawns),
@@ -147,8 +153,7 @@ module demo_top #(
                 .spawn(spawns[i]),
 
                 .spawn_countdown(spawn_countdowns[i]),
-                .display_active(display_actives[i]),
-
+                .ready(lane_ready[i]),
                 .display_value(
                     display_values[
                         i*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH
@@ -172,7 +177,7 @@ module demo_top #(
         .MAX_SCORE(MAX_SCORE)
     ) u_score (
         .clk(CLOCK_50),
-        .rst(reset),
+        .rst(score_reset),
 
         .l_0_quality_valid(quality_valids[0]),
         .l_0_quality_value(hit_qualitys[0*2 +: 2]),
@@ -196,24 +201,16 @@ module demo_top #(
     logic [3:0] lane_3_display;
 
     assign lane_0_display = count_active ? count_val :
-                            (display_actives[0] ?
-                            display_values[0*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH] :
-                            4'd10);
+                            display_values[0*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH];
 
     assign lane_1_display = count_active ? count_val :
-                            (display_actives[1] ?
-                            display_values[1*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH] :
-                            4'd10);
+                            display_values[1*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH];
 
     assign lane_2_display = count_active ? count_val :
-                            (display_actives[2] ?
-                            display_values[2*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH] :
-                            4'd10);
+                            display_values[2*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH];
 
     assign lane_3_display = count_active ? count_val :
-                            (display_actives[3] ?
-                            display_values[3*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH] :
-                            4'd10);
+                            display_values[3*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH];
     // Display driver
     piano_keys_display u_game_display (
         .score_value(game_score),

@@ -4,9 +4,10 @@
 
 module sequencer (
 
-    input clk, beat_clk,
+    input clk, beat_clk, // hard_reset,
     input start_button, //Debounced button-state
     input reset,
+    input all_lanes_ready,
     input [1:0] difficulty_ind, //Difficulty-index 0-3
     //Note data for each lane seperated (with random visibility applied)
     output reg [3:0] lane_countdowns [4],
@@ -98,6 +99,10 @@ module sequencer (
     always @(*) begin
         next_state = current_state;
 
+        // if (hard_reset) begin
+        //     next_state = AWAITING_START;
+        // end
+        // else begin
         case (current_state)
             INIT: begin
                     if (note_index >= num_notes + 2) begin // +2 as first 2 index are skipped
@@ -120,12 +125,13 @@ module sequencer (
 
             IN_GAME: begin
                     //Check if all lanes are complete - game over (state change)
-                    if (lanes_completed == 4) begin
+                    if ((lanes_completed == 4) && all_lanes_ready) begin
                         next_state = AWAITING_START;
                     end
                 end
 
         endcase
+        // end
     end
 
 
