@@ -143,8 +143,8 @@ module demo_top #(
                     spawn_countdowns[i]
                 ),
 
-                .ready(readys[i]),
-                .display_active(display_actives[i]),
+                // .ready(readys[i]),
+                // .display_active(display_actives[i]),
 
                 .display_value(
                     display_values[
@@ -157,7 +157,7 @@ module demo_top #(
                 ),
 
                 .quality_valid(quality_valids[i]),
-                .spawn_rejected_pulse(spawn_rejected_pulses[i]),
+                // .spawn_rejected_pulse(spawn_rejected_pulses[i]),
                 .hit_led(hit_leds[i])
             );
 
@@ -217,5 +217,10 @@ module demo_top #(
 
         .score_multi_leds(LEDR[9:7])
     );
+
+
+    initial begin
+        press_pulses = {1'b0, 1'b0, 1'b0, 1'b0}; // NON BLOCKING??
+    end
 
 endmodule

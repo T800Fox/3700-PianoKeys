@@ -4,7 +4,7 @@
 
 module sequencer (
 
-    input clk, beat_clk,
+    input clk, beat_clk, // hard_reset,
     input start_button, //Debounced button-state
     input [1:0] difficulty_ind, //Difficulty-index 0-3
     //Note data for each lane seperated (with random visibility applied)
@@ -92,6 +92,10 @@ module sequencer (
     always @(*) begin
         next_state = current_state;
 
+        // if (hard_reset) begin
+        //     next_state = AWAITING_START;
+        // end
+        // else begin
         case (current_state)
             INIT: begin
                     if (note_index >= num_notes + 2) begin // +2 as first 2 index are skipped 
@@ -120,6 +124,7 @@ module sequencer (
                 end
 
         endcase
+        // end
     end
 
 
