@@ -67,6 +67,11 @@ module demo_top #(
     reg [3:0] count_val_placeholder;
 
 
+    
+
+
+
+
     // Shared timing generator
     beat_gen #(
         .MS_PER_SUBBEAT(MS_PER_SUBBEAT),
@@ -97,24 +102,15 @@ module demo_top #(
         .clk(CLOCK_50), 
         .beat_clk(beat_tick),
         .start_button(press_pulses[0]), //Assuming this will be debounced sync-edge of buttons
-        .difficulty_ind(DIFFICULTY),
+        .hard_reset() //EDGE DETECTED SW0!!!!!!
+        .difficulty_ind(SW[9:8]),
+        .song_selection_ind(SW[7:6]),
         .lane_countdowns(spawn_countdowns),
         .lane_resets(spawns),
         .count_val(count_val_placeholder), //CONNECT TO SEVEN SEG +need a display count flag to override value (override if nonzero)
         .beat_clk_reset(reset)
     );
 
-    // module sequencer (
-
-    //     input clk, input beat_clk,
-    //     input start_button, //Debounced button-state
-    //     input [1:0] difficulty_ind, //Difficulty-index 0-3
-    //     //Note data for each lane seperated (with random visibility applied)
-    //     output reg [3:0] lane_countdowns [4],
-    //     output reg lane_resets[4],
-    //     output reg [3:0] count_val, //count-in for game (display if non-zero)!!
-    //     output reg beat_clk_reset //reset signal for beat clock at start of game
-    // );
 
 
     // Four independent piano tiles lanes
