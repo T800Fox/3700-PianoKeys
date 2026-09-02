@@ -1,5 +1,7 @@
 module score_handler #(
-	parameter MAX_SCORE=99
+	parameter MAX_SCORE=99,
+	parameter CONSEC_PERFECT_FOR_MOVE_TO_X2=2,
+	parameter CONSEC_PERFECT_FOR_MOVE_TO_X4=4,
 ) (
 	input logic			clk, rst,
 	input logic			l_0_quality_valid,
@@ -27,7 +29,10 @@ module score_handler #(
 	logic 	[2:0] 	multi_fsm_multiplier;
 	
 
-	score_multiplier_fsm multi_fsm (
+	score_multiplier_fsm multi_fsm #(
+		.CONSEC_PERFECT_TO_2(CONSEC_PERFECT_FOR_MOVE_TO_X2),
+		.CONSEC_PERFECT_TO_4(CONSEC_PERFECT_FOR_MOVE_TO_X4)
+	) (
 		.clk(clk),
 		.rst(rst),
 		.reaction_valid(multi_fsm_quality_valid),
