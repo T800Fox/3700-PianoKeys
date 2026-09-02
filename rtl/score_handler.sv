@@ -59,15 +59,18 @@ module score_handler #(
 	end
 
 	// PERFECT	-> add to score w/ multiplier @ enforce ceil of MAX_SCORE
-	// NORMAL 	-> add to score w/ multiplier @ enforce ceil of MAX_SCORE
+	// NORMAL 	-> add 1 to score @ enforce ceil of MAX_SCORE
 	// POOR		-> no change to score
 	// BAD		-> remove 1 from score @ enforce floor of 0
 	always_ff @(posedge clk) begin : scoreUpdateLogic
 		if (rst) score <= 0;
 
 		if (multi_fsm_quality_valid) begin			
-			if (multi_fsm_quality_input == QUALITY_PERFECT || multi_fsm_quality_input == QUALITY_NORMAL) begin
+			if (multi_fsm_quality_input == QUALITY_PERFECT) begin
 				score <= (score + 1 * multi_fsm_multiplier >= MAX_SCORE) ? MAX_SCORE : score + 1 * multi_fsm_multiplier;
+			end
+			else if (multi_fsm_quality_input == QUALITY_NORMAL) begin
+				score <= (score + 1 >= MAX_SCORE) ? MAX_SCORE : score + 1;
 			end
 			else if (multi_fsm_quality_input == QUALITY_BAD) begin
 				score <= (score == 0) ? 0 : score - 1;
