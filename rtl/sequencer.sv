@@ -1,10 +1,10 @@
-`timescale 100ms/1ms
+// `timescale 100ms/1ms
 
 
 
 module sequencer (
 
-    input clk, input beat_clk,
+    input clk, beat_clk,
     input start_button, //Debounced button-state
     input [1:0] difficulty_ind, //Difficulty-index 0-3
     //Note data for each lane seperated (with random visibility applied)
@@ -14,7 +14,7 @@ module sequencer (
     output reg beat_clk_reset //reset signal for beat clock at start of game
 );
     //FSM
-    typedef enum reg [1:0] {INIT, AWAITING_START, COUNT_IN, IN_GAME} state_type;
+    typedef enum logic [1:0] {INIT, AWAITING_START, COUNT_IN, IN_GAME} state_type;
     state_type current_state, next_state;
 
     reg [11:0] lane_data [4][256]; //11:4 is delta-beat 3:0 is reset-value
