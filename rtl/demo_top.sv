@@ -23,6 +23,8 @@ module demo_top #(
 
     parameter HIT_FLASH_MS                = 300,
     parameter MAX_SCORE                   = 99,
+    parameter CONSEC_PERF_FOR_MOVE_TO_X2  = 2,
+	parameter CONSEC_PERF_FOR_MOVE_TO_X4  = 4,
 
     // Exposed so the full-system test can shorten physical input delays
     parameter DEBOUNCE_COUNTS             = 2500,
@@ -103,14 +105,13 @@ module demo_top #(
         (SW[7:6] > 2) ? 2'd0 : SW[7:6];
 
 
-    // Clearly indicate selected difficulty on hardware.
-    assign LEDR[2:0] =
-        (difficulty_select == 2'd0) ? 3'b001 :
-        (difficulty_select == 2'd1) ? 3'b010 :
-                                      3'b100;
+    // // Clearly indicate selected difficulty on hardware.
+    // assign LEDR[2:0] =
+    //     (difficulty_select == 2'd0) ? 3'b001 :
+    //     (difficulty_select == 2'd1) ? 3'b010 :
+    //                                   3'b100;
 
     // button gating
-
     assign lane_press_pulses =
         press_pulses & {4{game_active}};
 
@@ -283,7 +284,9 @@ module demo_top #(
     // Score + multiplier
 
     score_handler #(
-        .MAX_SCORE(MAX_SCORE)
+        .MAX_SCORE(MAX_SCORE),
+        .CONSEC_PERFECT_FOR_MOVE_TO_X2(CONSEC_PERF_FOR_MOVE_TO_X2),
+        .CONSEC_PERFECT_FOR_MOVE_TO_X4(CONSEC_PERF_FOR_MOVE_TO_X4)
     ) u_score (
         .clk(CLOCK_50),
         .rst(score_reset),
@@ -332,6 +335,8 @@ module demo_top #(
         .score_value(game_score),
         .score_multi(encoded_multi_state),
 
+        .difficulty_level(difficulty_select),
+
         .lane_0_value(lane_0_display),
         .lane_1_value(lane_1_display),
         .lane_2_value(lane_2_display),
@@ -352,7 +357,8 @@ module demo_top #(
         .score_ones_HEX(HEX4),
         .score_tens_HEX(HEX5),
 
-        .score_multi_leds(LEDR[9:7])
+        .score_multi_leds(LEDR[9:7]),
+        .difficulty_leds(LEDR[2:0])
     );
 
 endmodule

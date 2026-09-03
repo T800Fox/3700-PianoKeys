@@ -9,6 +9,7 @@ module piano_keys_display (
 	 input lane_1_led,
 	 input lane_2_led,
 	 input lane_3_led,
+	 input 	[2:0] difficulty_level,
 	 
 	 output [6:0] score_ones_HEX,
 	 output [6:0] score_tens_HEX,
@@ -17,7 +18,8 @@ module piano_keys_display (
 	 output [6:0] lane_1_HEX,
 	 output [6:0] lane_2_HEX,
 	 output [6:0] lane_3_HEX,
-	 output [3:0] lane_leds
+	 output [3:0] lane_leds,
+	 output [2:0] difficulty_leds
 );
 
 	reg [3:0] ones_segment_value;
@@ -106,7 +108,9 @@ module piano_keys_display (
 		endcase
 	end 
 	
-	
+	assign difficulty_leds = (difficulty_level == 2'd0) ? 3'b001 :
+        (difficulty_level == 2'd1) ? 3'b010 : 3'b100;
+
 	assign lane_leds = lane_leds_buffer;
 	assign score_multi_leds = score_multi_leds_buffer;
 	
