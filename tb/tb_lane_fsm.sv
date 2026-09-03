@@ -18,7 +18,7 @@ module tb_lane_fsm;
     logic clk = 0;
     logic reset, beat_tick, subbeat_tick, press_pulse, spawn;
     logic [COUNTDOWN_WIDTH-1:0] spawn_countdown;
-    logic quality_valid, hit_led;
+    logic ready, quality_valid, hit_led;
     logic [COUNTDOWN_WIDTH-1:0] display_value;
     logic [1:0] hit_quality;
 
@@ -33,6 +33,7 @@ module tb_lane_fsm;
         .clk(clk), .reset(reset), .beat_tick(beat_tick),
         .subbeat_tick(subbeat_tick), .press_pulse(press_pulse),
         .spawn(spawn), .spawn_countdown(spawn_countdown),
+        .ready(ready),
         .display_value(display_value),
         .hit_quality(hit_quality), .quality_valid(quality_valid), .hit_led(hit_led)
     );
@@ -92,15 +93,16 @@ module tb_lane_fsm;
         spawn_countdown = '0;
 
         apply_reset();
-        if (display_value !== DISPLAY_BLANK || quality_valid || hit_led)
+        if (!ready || display_value !== DISPLAY_BLANK || quality_valid || hit_led)
             $fatal(1, "FAIL test 1: reset did not clear lane");
         $display("PASS test 1: reset clears lane");
 
         request_spawn(0);
-        if (display_value !== DISPLAY_BLANK)
+        if (!ready || display_value !== DISPLAY_BLANK)
             $fatal(1, "FAIL test 2: invalid countdown was accepted");
         press_key();
-        if (!quality_valid || hit_quality !== QUALITY_BAD || display_value !== DISPLAY_BLANK)
+        if (!ready || !quality_valid || hit_quality !== QUALITY_BAD ||
+            display_value !== DISPLAY_BLANK)
             $fatal(1, "FAIL test 2: inactive press was not bad");
         @(posedge clk); #1;
         if (quality_valid)
@@ -109,7 +111,7 @@ module tb_lane_fsm;
 
         apply_reset();
         request_spawn(3);
-        if (display_value !== 3)
+        if (ready || display_value !== 3)
             $fatal(1, "FAIL test 3: countdown 3 was not accepted");
         repeat (2) @(posedge clk); #1;
         if (display_value !== 3)
@@ -123,7 +125,7 @@ module tb_lane_fsm;
         apply_reset();
         request_spawn(4);
         press_key();
-        if (!quality_valid || hit_quality !== QUALITY_BAD ||
+        if (!ready || !quality_valid || hit_quality !== QUALITY_BAD ||
             display_value !== DISPLAY_BLANK || hit_led)
             $fatal(1, "FAIL test 4: early countdown press was not bad");
         $display("PASS test 4: press before countdown 1 is bad");
@@ -131,7 +133,7 @@ module tb_lane_fsm;
         apply_reset();
         request_spawn(1);
         press_key();
-        if (!quality_valid || hit_quality !== QUALITY_POOR ||
+        if (ready || !quality_valid || hit_quality !== QUALITY_POOR ||
             display_value !== DISPLAY_BLANK || hit_led)
             $fatal(1, "FAIL test 5: first half of 1 was not poor");
         $display("PASS test 5: first half of 1 is poor");
@@ -140,11 +142,11 @@ module tb_lane_fsm;
         request_spawn(1);
         advance_subbeats(3);
         press_key();
-        if (!quality_valid || hit_quality !== QUALITY_NORMAL ||
+        if (ready || !quality_valid || hit_quality !== QUALITY_NORMAL ||
             display_value !== DISPLAY_BLANK || !hit_led)
             $fatal(1, "FAIL test 6: hit-window start was not normal");
         press_key();
-        if (!quality_valid || hit_quality !== QUALITY_BAD ||
+        if (ready || !quality_valid || hit_quality !== QUALITY_BAD ||
             display_value !== DISPLAY_BLANK)
             $fatal(1, "FAIL test 6: repeated press was not bad");
         $display("PASS test 6: normal hit resolves once and mashing is bad");
@@ -179,7 +181,7 @@ module tb_lane_fsm;
         if (display_value !== 0)
             $fatal(1, "FAIL test 8: zero ended early");
         pulse_subbeat();
-        if (display_value !== DISPLAY_BLANK || !quality_valid ||
+        if (!ready || display_value !== DISPLAY_BLANK || !quality_valid ||
             hit_quality !== QUALITY_POOR)
             $fatal(1, "FAIL test 8: expiry did not produce miss");
         $display("PASS test 8: miss occurs after half-beat of zero");
@@ -191,7 +193,7 @@ module tb_lane_fsm;
         if (display_value !== 1)
             $fatal(1, "FAIL test 9: queued note disturbed current note");
         advance_subbeats(HIT_END_TICK - 4);
-        if (display_value !== 4 || !quality_valid ||
+        if (ready || display_value !== 4 || !quality_valid ||
             hit_quality !== QUALITY_POOR)
             $fatal(1, "FAIL test 9: queued note did not replace expired note");
         $display("PASS test 9: note queues during open judgement window");
@@ -201,10 +203,10 @@ module tb_lane_fsm;
         advance_subbeats(3);
         press_key();
         request_spawn(5);
-        if (display_value !== DISPLAY_BLANK)
+        if (ready || display_value !== DISPLAY_BLANK)
             $fatal(1, "FAIL test 10: queued note appeared before slot ended");
         advance_subbeats(HIT_END_TICK - 3);
-        if (display_value !== 5)
+        if (ready || display_value !== 5)
             $fatal(1, "FAIL test 10: queued note did not appear at slot end");
         $display("PASS test 10: hit blanks until fixed slot ends");
 
@@ -214,7 +216,7 @@ module tb_lane_fsm;
         request_spawn(4);
         request_spawn(2);
         advance_subbeats(HIT_END_TICK - 2);
-        if (display_value !== 4)
+        if (ready || display_value !== 4)
             $fatal(1, "FAIL test 11: second queued note replaced first");
         $display("PASS test 11: pending buffer holds one note");
 
@@ -222,13 +224,14 @@ module tb_lane_fsm;
         request_spawn(1);
         advance_subbeats(SUBBEATS_PER_BEAT);
         press_key();
-        if (!hit_led) $fatal(1, "FAIL test 12: normal hit did not light LED");
+        if (ready || !hit_led)
+            $fatal(1, "FAIL test 12: successful hit did not light LED");
         advance_subbeats(HIT_FLASH_TICKS - 1);
         if (!hit_led) $fatal(1, "FAIL test 12: hit LED ended early");
         pulse_subbeat();
         if (hit_led) $fatal(1, "FAIL test 12: hit LED lasted too long");
         apply_reset();
-        if (display_value !== DISPLAY_BLANK || hit_led || quality_valid)
+        if (!ready || display_value !== DISPLAY_BLANK || hit_led || quality_valid)
             $fatal(1, "FAIL test 12: reset did not clear activity");
         $display("PASS test 12: hit flash and reset work");
 
