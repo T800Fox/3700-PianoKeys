@@ -220,7 +220,7 @@ module tb_lane_fsm;
 
         apply_reset();
         request_spawn(1);
-        advance_subbeats(3);
+        advance_subbeats(SUBBEATS_PER_BEAT);
         press_key();
         if (!hit_led) $fatal(1, "FAIL test 12: normal hit did not light LED");
         advance_subbeats(HIT_FLASH_TICKS - 1);

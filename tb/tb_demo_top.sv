@@ -1,185 +1,360 @@
+
 `timescale 1ns/1ns
 
-// tb_demo_top.sv, example system-level integration testbench for rtl/demo_top.sv.
-//
-// It drives only the real board pins (CLOCK_50, KEY, SW) and checks only the
-// real board outputs (LEDR, HEX).
-//
-// docs/WRITING_TESTBENCHES.md walks through the design of these testbenches,
-// including the "arm after reset" trick that keeps the continuous monitor
-// below working in both simulators (docs/SIMULATOR_GOTCHAS.md has the why).
-
-// Five tests, in order, plus one continuous monitor running throughout:
-//   1. reset (SW0) clears the heartbeat
-//   2. heartbeat runs at the parameterised rate
-//   3. LEDR4..1 follow KEY3..KEY0 (active low)
-//   4. HEX0 shows SW7..SW1, inverted (segments are active low)
-//   5. LEDR6..5 follow SW9..SW8, LEDR9..7 stay off
-//   * monitor: HEX5..HEX1 must never light up, once armed after test 1
 module tb_demo_top;
 
-    // Override the 12.5-million-cycle period down to 4 cycles, so the test
-    // runs in moments but checks the same RTL that goes on the board:
-    localparam CLKS_PER_TOGGLE = 4;
+    logic CLOCK_50 = 0;
 
-    // Inputs to the DUT, driven in the initial block below:
-    logic       CLOCK_50;
     logic [3:0] KEY;
     logic [9:0] SW;
-    // Outputs of the DUT; we only ever read them:
-    logic [9:0] LEDR;
-    logic [6:0] HEX0, HEX1, HEX2, HEX3, HEX4, HEX5;
 
-    demo_top #(.CLKS_PER_TOGGLE(CLKS_PER_TOGGLE)) dut (
-        .CLOCK_50 (CLOCK_50),
-        .KEY      (KEY),
-        .SW       (SW),
-        .LEDR     (LEDR),
-        .HEX0     (HEX0),
-        .HEX1     (HEX1),
-        .HEX2     (HEX2),
-        .HEX3     (HEX3),
-        .HEX4     (HEX4),
-        .HEX5     (HEX5)
+    logic [9:0] LEDR;
+
+    logic [6:0] HEX0;
+    logic [6:0] HEX1;
+    logic [6:0] HEX2;
+    logic [6:0] HEX3;
+    logic [6:0] HEX4;
+    logic [6:0] HEX5;
+
+
+    demo_top #(
+        .MS_PER_SUBBEAT(2),
+        .JASPERS_MS_PER_SUBBEAT(2),
+        .TWINKLE_MS_PER_SUBBEAT(2),
+
+        .SUBBEATS_PER_BEAT(6),
+        .CLKS_PER_MS(1),
+
+        .WINDOW_HALF_TICKS(3),
+
+        .PERFECT_START_TICK(5),
+        .PERFECT_END_TICK(7),
+
+        .HIT_FLASH_TICKS(2),
+
+        .DEBOUNCE_COUNTS(1),
+        .SWITCH_RELEASE_COUNTS(1)
+    ) dut (
+        .CLOCK_50(CLOCK_50),
+
+        .KEY(KEY),
+        .SW(SW),
+
+        .LEDR(LEDR),
+
+        .HEX0(HEX0),
+        .HEX1(HEX1),
+        .HEX2(HEX2),
+        .HEX3(HEX3),
+        .HEX4(HEX4),
+        .HEX5(HEX5)
     );
 
-    initial CLOCK_50 = 0;
-    always #10 CLOCK_50 = ~CLOCK_50;    // 20 ns period = 50 MHz
 
-    // Waveform dump only when asked: scripts/simulate.py passes +dump.
-    initial begin : waveform_dump
-        if ($test$plusargs("dump")) begin
-`ifdef VERILATOR
-            $dumpfile("waveform.fst");  // ModelSim can only write .vcd
-`else
-            $dumpfile("waveform.vcd");
-`endif
-            $dumpvars(0, tb_demo_top);
-        end
-    end
+    always #5 CLOCK_50 = ~CLOCK_50;
 
-    // A continuous monitor: unlike the tests below, which check one thing at
-    // one moment, this runs on every clock edge for the whole simulation.
-    // It only starts checking once `armed` is set, after the first reset --
-    // before that the DUT's registers are X in ModelSim (0 in Verilator) and
-    // the check would fail in one simulator but not the other.
-    logic armed = 0;
-    always @(posedge CLOCK_50) begin : monitor_unused_hex
-        if (armed && (HEX1 !== 7'b1111111 || HEX2 !== 7'b1111111 ||
-                      HEX3 !== 7'b1111111 || HEX4 !== 7'b1111111 ||
-                      HEX5 !== 7'b1111111))
-            $fatal(1, "FAIL monitor: an unused display lit up");
-    end
 
-    int n, k;
+    task automatic press_button(
+        input integer idx
+    );
 
-    // Counts clock edges until LEDR[0] changes.
-    task automatic clocks_to_heartbeat_toggle(output int count);
-        logic prev;
-        prev  = LEDR[0];
-        count = 0;
-        // === also matches X and Z, which matters in ModelSim:
-        while (LEDR[0] === prev) begin
+        @(negedge CLOCK_50);
+        KEY[idx] = 0;
+
+        repeat (5)
             @(posedge CLOCK_50);
-            // The #1 lets the DUT's non-blocking (<=) assignments settle
-            // before we read the output:
-            #1;
-            count++;
-            // Give up rather than loop forever if the heartbeat is stuck:
-            if (count > 100) $fatal(1, "FAIL: heartbeat never toggled");
-        end
+
+        @(negedge CLOCK_50);
+        KEY[idx] = 1;
+
+        repeat (4)
+            @(posedge CLOCK_50);
+
     endtask
 
-    initial begin : test_cases
 
-        // Default every input. KEY is active low, so all ones = not pressed:
+    integer cycles;
+    integer lane_idx;
+    integer old_score;
+
+
+    initial begin
+
         KEY = 4'b1111;
-        SW  = 10'b0;
+        SW = 10'b0;
 
 
-        // --- Test 1: reset (SW0) clears the heartbeat -------------------------
-        // Always drive reset before checking anything:
+        // ----------------------------------------------------
+        // Reset
+        // ----------------------------------------------------
+
         SW[0] = 1;
-        repeat (3) @(posedge CLOCK_50);
+
+        repeat (4)
+            @(posedge CLOCK_50);
+
+        SW[0] = 0;
+
+        repeat (5)
+            @(posedge CLOCK_50);
+
         #1;
-        if (LEDR[0] !== 1'b0) $fatal(1, "FAIL test 1: LEDR0=%b in reset, expected 0", LEDR[0]);
-        $display("PASS test 1: reset clears the heartbeat");
 
-        // The design is now in a known state, so the monitor can start:
-        armed = 1;
-
-        // Release reset on the negedge, away from the posedge the DUT samples on:
-        @(negedge CLOCK_50) SW[0] = 0;
+        if (dut.game_score !== 0)
+            $fatal(
+                1,
+                "FAIL: score not zero after reset"
+            );
 
 
-        // --- Test 2: heartbeat runs at the parameterised rate -----------------
-        // Measure three toggles in a row. One could be a coincidence; three in
-        // a row means the divider is really counting:
-        for (k = 0; k < 3; k++) begin
-            clocks_to_heartbeat_toggle(n);
-            if (n !== CLKS_PER_TOGGLE)
-                $fatal(1, "FAIL test 2: heartbeat half-period %0d clocks, expected %0d",
-                       n, CLKS_PER_TOGGLE);
-        end
-        $display("PASS test 2: heartbeat toggles every %0d clocks", CLKS_PER_TOGGLE);
+        // ----------------------------------------------------
+        // Difficulty indication
+        // ----------------------------------------------------
 
-
-        // --- Test 3: LEDR4..1 follow KEY3..KEY0 (active low) ------------------
-        // Press one key at a time and check that only its LED comes on.
-        // `4'b1 << k` is a 1 in position k; ~ inverts it because a pressed
-        // key reads as 0:
-        for (k = 0; k < 4; k++) begin
-            @(negedge CLOCK_50) KEY = ~(4'b1 << k);
-            #1;     // combinational logic settles, then we check
-            if (LEDR[4:1] !== (4'b1 << k))
-                $fatal(1, "FAIL test 3: KEY=%b gave LEDR[4:1]=%b, expected %b",
-                       KEY, LEDR[4:1], (4'b1 << k));
-        end
-        // Release every key and check the LEDs all go out:
-        @(negedge CLOCK_50) KEY = 4'b1111;
+        SW[9:8] = 2'b00;
         #1;
-        if (LEDR[4:1] !== 4'b0000)
-            $fatal(1, "FAIL test 3: no key pressed but LEDR[4:1]=%b", LEDR[4:1]);
-        $display("PASS test 3: LEDR4..1 mirror the keys");
+
+        if (LEDR[2:0] !== 3'b001)
+            $fatal(
+                1,
+                "FAIL: Easy LED indication"
+            );
 
 
-        // --- Test 4: HEX0 shows SW7..SW1, inverted (segments are active low) --
-        // Light one segment at a time. HEX0 should always be the inverse of
-        // the switches, because a 0 turns a segment ON:
-        for (k = 0; k < 7; k++) begin
-            @(negedge CLOCK_50) SW[7:1] = 7'b1 << k;
+        SW[9:8] = 2'b01;
+        #1;
+
+        if (LEDR[2:0] !== 3'b010)
+            $fatal(
+                1,
+                "FAIL: Medium LED indication"
+            );
+
+
+        SW[9:8] = 2'b10;
+        #1;
+
+        if (LEDR[2:0] !== 3'b100)
+            $fatal(
+                1,
+                "FAIL: Hard LED indication"
+            );
+
+
+        // Demo song = gy, Easy.
+        SW[9:8] = 2'b00;
+        SW[7:6] = 2'b00;
+
+
+        // ----------------------------------------------------
+        // Start game with KEY0
+        // ----------------------------------------------------
+
+        press_button(0);
+
+
+        cycles = 0;
+
+        while (
+            !dut.count_active &&
+            cycles < 10000
+        ) begin
+
+            @(posedge CLOCK_50);
+            cycles = cycles + 1;
+
+        end
+
+        if (!dut.count_active)
+            $fatal(
+                1,
+                "FAIL: game did not enter COUNT_IN"
+            );
+
+
+        cycles = 0;
+
+        while (
+            !dut.game_active &&
+            cycles < 10000
+        ) begin
+
+            @(posedge CLOCK_50);
+            cycles = cycles + 1;
+
+        end
+
+        if (!dut.game_active)
+            $fatal(
+                1,
+                "FAIL: game did not enter IN_GAME"
+            );
+
+
+        // ----------------------------------------------------
+        // Find a lane displaying 0 and hit it.
+        // ----------------------------------------------------
+
+        lane_idx = -1;
+        cycles = 0;
+
+        while (
+            lane_idx < 0 &&
+            cycles < 20000
+        ) begin
+
+            @(posedge CLOCK_50);
             #1;
-            if (HEX0 !== ~SW[7:1])
-                $fatal(1, "FAIL test 4: SW[7:1]=%b gave HEX0=%b, expected %b",
-                       SW[7:1], HEX0, ~SW[7:1]);
+
+            if (dut.lane_0_display == 0)
+                lane_idx = 0;
+            else if (dut.lane_1_display == 0)
+                lane_idx = 1;
+            else if (dut.lane_2_display == 0)
+                lane_idx = 2;
+            else if (dut.lane_3_display == 0)
+                lane_idx = 3;
+
+            cycles = cycles + 1;
+
         end
-        // With every switch down the whole display should be dark:
-        @(negedge CLOCK_50) SW[7:1] = 7'b0;
-        #1;
-        if (HEX0 !== 7'b1111111)
-            $fatal(1, "FAIL test 4: HEX0=%b with all switches down, expected all off", HEX0);
-        $display("PASS test 4: HEX0 follows the switches");
+
+        if (lane_idx < 0)
+            $fatal(
+                1,
+                "FAIL: no note reached zero"
+            );
 
 
-        // --- Test 5: LEDR6..5 follow SW9..SW8, LEDR9..7 stay off --------------
-        // Two different patterns for coverage:
-        @(negedge CLOCK_50) SW[9:8] = 2'b10;
-        #1;
-        if (LEDR[6:5] !== 2'b10)
-            $fatal(1, "FAIL test 5: SW[9:8]=10 gave LEDR[6:5]=%b", LEDR[6:5]);
-        @(negedge CLOCK_50) SW[9:8] = 2'b01;
-        #1;
-        if (LEDR[6:5] !== 2'b01)
-            $fatal(1, "FAIL test 5: SW[9:8]=01 gave LEDR[6:5]=%b", LEDR[6:5]);
-        // The unused LEDs must stay off rather than being left floating:
-        if (LEDR[9:7] !== 3'b000)
-            $fatal(1, "FAIL test 5: unused LEDR[9:7]=%b, expected 000", LEDR[9:7]);
-        $display("PASS test 5: switch LEDs follow SW9..SW8, unused LEDs held off");
+        press_button(lane_idx);
 
-        // The runner scripts search for the exact string "ALL TESTS PASSED".
-        // Reaching this line means no $fatal fired, so every check above passed.
-        $display("ALL TESTS PASSED: tb_demo_top");
+        repeat (3)
+            @(posedge CLOCK_50);
+
+        #1;
+
+        if (dut.game_score == 0)
+            $fatal(
+                1,
+                "FAIL: correct zero-window hit did not score"
+            );
+
+
+        // ----------------------------------------------------
+        // Find an early note >=2.
+        // Pressing must never increase score.
+        // In our design it is forfeited / BAD.
+        // ----------------------------------------------------
+
+        old_score = dut.game_score;
+
+        lane_idx = -1;
+        cycles = 0;
+
+        while (
+            lane_idx < 0 &&
+            cycles < 20000
+        ) begin
+
+            @(posedge CLOCK_50);
+            #1;
+
+            if (
+                dut.lane_0_display >= 2 &&
+                dut.lane_0_display <= 9
+            )
+                lane_idx = 0;
+
+            else if (
+                dut.lane_1_display >= 2 &&
+                dut.lane_1_display <= 9
+            )
+                lane_idx = 1;
+
+            else if (
+                dut.lane_2_display >= 2 &&
+                dut.lane_2_display <= 9
+            )
+                lane_idx = 2;
+
+            else if (
+                dut.lane_3_display >= 2 &&
+                dut.lane_3_display <= 9
+            )
+                lane_idx = 3;
+
+            cycles = cycles + 1;
+
+        end
+
+        if (lane_idx < 0)
+            $fatal(
+                1,
+                "FAIL: could not find early note"
+            );
+
+
+        press_button(lane_idx);
+
+        repeat (3)
+            @(posedge CLOCK_50);
+
+        #1;
+
+        if (dut.game_score > old_score)
+            $fatal(
+                1,
+                "FAIL: early press increased score"
+            );
+
+
+        // ----------------------------------------------------
+        // Complete reset clears score and lanes.
+        // ----------------------------------------------------
+
+        SW[0] = 1;
+
+        repeat (4)
+            @(posedge CLOCK_50);
+
+        #1;
+
+        if (dut.game_score !== 0)
+            $fatal(
+                1,
+                "FAIL: reset did not clear score"
+            );
+
+        if (
+            dut.lane_0_display !== 10 ||
+            dut.lane_1_display !== 10 ||
+            dut.lane_2_display !== 10 ||
+            dut.lane_3_display !== 10
+        )
+            $fatal(
+                1,
+                "FAIL: reset did not blank lanes"
+            );
+
+
+        $display(
+            "ALL TESTS PASSED: tb_demo_top"
+        );
+
         $finish;
+    end
+
+
+    initial begin
+
+        #2000000;
+
+        $fatal(
+            1,
+            "FAIL: tb_demo_top timeout"
+        );
+
     end
 
 endmodule

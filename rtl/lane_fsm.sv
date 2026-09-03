@@ -16,6 +16,7 @@ module lane_fsm #(
     input logic press_pulse,
     input logic spawn,
     input logic [COUNTDOWN_WIDTH-1:0] spawn_countdown,
+    output logic ready,
     output logic [COUNTDOWN_WIDTH-1:0] display_value,
     output logic [1:0] hit_quality,
     output logic quality_valid,
@@ -36,6 +37,8 @@ module lane_fsm #(
     typedef enum logic [1:0] { INACTIVE, COUNTDOWN, JUDGEMENT } state_type;
 
     state_type current_state, next_state;
+
+  assign ready = (current_state == INACTIVE);
     logic [COUNTDOWN_WIDTH-1:0] countdown;
     logic [JUDGEMENT_COUNTER_WIDTH-1:0] judgement_tick;
     logic pending_valid;

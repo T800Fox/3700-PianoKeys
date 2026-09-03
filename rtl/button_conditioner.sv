@@ -20,6 +20,10 @@ module button_conditioner #(
         .button_pressed (button_pressed)
     );
 
+    initial begin
+        previous_button <= 1'b1;
+    end 
+    
     always_ff @(posedge clk) begin
         if (reset)
             previous_button <= 1'b0;
