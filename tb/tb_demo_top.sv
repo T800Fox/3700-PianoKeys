@@ -107,6 +107,22 @@ module tb_demo_top;
                 "FAIL: score not zero after reset"
             );
 
+        repeat (10) begin
+            @(posedge CLOCK_50);
+            #1;
+
+            if (
+                HEX0 !== 7'b1111111 ||
+                HEX1 !== 7'b1111111 ||
+                HEX2 !== 7'b1111111 ||
+                HEX3 !== 7'b1111111
+            )
+                $fatal(
+                    1,
+                    "FAIL: lane displays did not remain blank after reset release"
+                );
+        end
+
 
         // ----------------------------------------------------
         // Difficulty indication

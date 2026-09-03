@@ -148,6 +148,11 @@ module sequencer #(
         lane_index[2] = 0;
         lane_index[3] = 0;
 
+        lane_len[0] = 0;
+        lane_len[1] = 0;
+        lane_len[2] = 0;
+        lane_len[3] = 0;
+
         score_time_playback = 0;
     end
 
@@ -257,13 +262,14 @@ module sequencer #(
             lane_resets[lane_i] = 0;
             lane_countdowns[lane_i] = 0;
 
-            if (lane_index[lane_i] == lane_len[lane_i]) begin
+            if (current_state == IN_GAME &&
+                lane_index[lane_i] == lane_len[lane_i]) begin
 
                 lanes_completed =
                     lanes_completed + 1;
 
             end
-            else if (
+            else if (current_state == IN_GAME && beat_clk &&
                 lane_data[
                     lane_i
                 ][
@@ -304,6 +310,11 @@ module sequencer #(
             lane_index[1] <= 0;
             lane_index[2] <= 0;
             lane_index[3] <= 0;
+
+            lane_len[0] <= 0;
+            lane_len[1] <= 0;
+            lane_len[2] <= 0;
+            lane_len[3] <= 0;
 
             score_time_playback <= 0;
 

@@ -23,6 +23,9 @@ module tb_sequencer;
     logic game_active;
     logic count_active;
 
+    logic previous_lane_reset [0:3];
+    logic monitor_armed;
+
 
     sequencer #(
         .NUM_SONGS(3),
@@ -51,6 +54,32 @@ module tb_sequencer;
 
 
     always #5 clk = ~clk;
+
+
+    integer monitor_lane;
+
+    always @(posedge clk) begin
+
+        if (reset) begin
+            for (monitor_lane = 0; monitor_lane < 4; monitor_lane = monitor_lane + 1)
+                previous_lane_reset[monitor_lane] = 0;
+        end
+        else if (monitor_armed) begin
+            for (monitor_lane = 0; monitor_lane < 4; monitor_lane = monitor_lane + 1) begin
+                if (lane_resets[monitor_lane] && !game_active)
+                    $fatal(1, "FAIL: lane %0d spawned outside IN_GAME", monitor_lane);
+
+                if (lane_resets[monitor_lane] && !beat_clk)
+                    $fatal(1, "FAIL: lane %0d spawn was not aligned to beat_clk", monitor_lane);
+
+                if (lane_resets[monitor_lane] && previous_lane_reset[monitor_lane])
+                    $fatal(1, "FAIL: lane %0d spawn exceeded one clock", monitor_lane);
+
+                previous_lane_reset[monitor_lane] = lane_resets[monitor_lane];
+            end
+        end
+
+    end
 
 
     task automatic do_reset;
@@ -126,12 +155,20 @@ module tb_sequencer;
 
         reset = 0;
         all_lanes_ready = 1;
+        monitor_armed = 0;
+
+        previous_lane_reset[0] = 0;
+        previous_lane_reset[1] = 0;
+        previous_lane_reset[2] = 0;
+        previous_lane_reset[3] = 0;
 
         difficulty_ind = 3;
         song_selection_ind = 0;
 
 
         do_reset();
+
+        monitor_armed = 1;
 
         #1;
 
@@ -152,6 +189,10 @@ module tb_sequencer;
                 1,
                 "FAIL: gy metadata was not loaded"
             );
+
+        // No lane may start while the count-in display is active.
+        repeat (2)
+            pulse_beat();
 
 
         do_reset();
