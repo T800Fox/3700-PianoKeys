@@ -97,7 +97,7 @@ module piano_keys_display (
 	
 	
 	// --- Score Multiplier Display Logic ---
-	always begin
+	always @(*) begin
 		case(score_multi)
 			2'b00: score_multi_leds_buffer = {1'b1, 1'b0, 1'b0};
 			2'b01: score_multi_leds_buffer = {1'b0, 1'b1, 1'b0};
@@ -111,4 +111,3 @@ module piano_keys_display (
 	assign score_multi_leds = score_multi_leds_buffer;
 	
 endmodule
-

@@ -5,8 +5,8 @@ module lane_fsm #(
     parameter COUNTDOWN_WIDTH = 4,
     parameter SUBBEATS_PER_BEAT = 6,
     parameter WINDOW_HALF_TICKS = 3,
-    parameter PERFECT_START_TICK = 5,
-    parameter PERFECT_END_TICK = 7,
+    parameter PERFECT_START_TICK = SUBBEATS_PER_BEAT,
+    parameter PERFECT_END_TICK = SUBBEATS_PER_BEAT + 1,
     parameter HIT_FLASH_TICKS = 4
 ) (
     input logic clk,
@@ -29,7 +29,7 @@ module lane_fsm #(
     localparam logic [1:0] QUALITY_BAD     = 2'b11;
     localparam logic [COUNTDOWN_WIDTH-1:0] DISPLAY_BLANK = 4'd10;
     localparam TARGET_TICK = SUBBEATS_PER_BEAT;
-    localparam HIT_START_TICK = TARGET_TICK - WINDOW_HALF_TICKS;
+    localparam HIT_START_TICK = TARGET_TICK;
     localparam HIT_END_TICK = TARGET_TICK + WINDOW_HALF_TICKS;
     localparam JUDGEMENT_COUNTER_WIDTH =
         (HIT_END_TICK <= 1) ? 1 : $clog2(HIT_END_TICK);
