@@ -7,7 +7,8 @@ module lane_fsm #(
     parameter WINDOW_HALF_TICKS = 3,
     parameter PERFECT_START_TICK = 5,
     parameter PERFECT_END_TICK = 7,
-    parameter HIT_FLASH_TICKS = 4
+    parameter HIT_FLASH_MS = 300,
+    parameter CLKS_PER_MS = 50000
 ) (
     input logic clk,
     input logic reset,
@@ -16,7 +17,7 @@ module lane_fsm #(
     input logic press_pulse,
     input logic spawn,
     input logic [COUNTDOWN_WIDTH-1:0] spawn_countdown,
-    output logic display_active,
+    output logic ready,
     output logic [COUNTDOWN_WIDTH-1:0] display_value,
     output logic [1:0] hit_quality,
     output logic quality_valid,
@@ -27,6 +28,7 @@ module lane_fsm #(
     localparam logic [1:0] QUALITY_NORMAL  = 2'b01;
     localparam logic [1:0] QUALITY_POOR    = 2'b10;
     localparam logic [1:0] QUALITY_BAD     = 2'b11;
+    localparam logic [COUNTDOWN_WIDTH-1:0] DISPLAY_BLANK = 4'd10;
     localparam TARGET_TICK = SUBBEATS_PER_BEAT;
     localparam HIT_START_TICK = TARGET_TICK - WINDOW_HALF_TICKS;
     localparam HIT_END_TICK = TARGET_TICK + WINDOW_HALF_TICKS;
@@ -36,6 +38,8 @@ module lane_fsm #(
     typedef enum logic [1:0] { INACTIVE, COUNTDOWN, JUDGEMENT } state_type;
 
     state_type current_state, next_state;
+
+  assign ready = (current_state == INACTIVE);
     logic [COUNTDOWN_WIDTH-1:0] countdown;
     logic [JUDGEMENT_COUNTER_WIDTH-1:0] judgement_tick;
     logic pending_valid;
@@ -51,21 +55,26 @@ module lane_fsm #(
         perfect_now = (judgement_tick >= PERFECT_START_TICK &&
                        judgement_tick < PERFECT_END_TICK);
         window_ended = (judgement_tick >= HIT_END_TICK - 1);
-        display_active = (current_state != INACTIVE) &&
-                         !(current_state == JUDGEMENT && resolved);
         successful_press = (current_state == JUDGEMENT && !resolved &&
                             press_pulse && judgement_tick >= HIT_START_TICK);
 
         case (current_state)
             COUNTDOWN: display_value = countdown;
-            JUDGEMENT: display_value = (judgement_tick < TARGET_TICK) ? 1 : 0;
-            default: display_value = '0;
+            JUDGEMENT: begin
+                if (resolved)
+                    display_value = DISPLAY_BLANK;
+                else
+                    display_value = (judgement_tick < TARGET_TICK) ? 1 : 0;
+            end
+            default: display_value = DISPLAY_BLANK;
         endcase
     end
 
-    hit_flash #(.FLASH_TICKS(HIT_FLASH_TICKS)) u_hit_flash (
-        .clk(clk), .reset(reset), .subbeat_tick(subbeat_tick),
-        .trigger(successful_press), .led(hit_led)
+    hit_flash #(
+        .FLASH_MS(HIT_FLASH_MS),
+        .CLKS_PER_MS(CLKS_PER_MS)
+    ) u_hit_flash (
+        .clk(clk), .reset(reset), .trigger(successful_press), .led(hit_led)
     );
 
     always_comb begin

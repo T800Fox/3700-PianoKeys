@@ -1,3 +1,4 @@
+set_global_assignment -name TOP_LEVEL_ENTITY demo_top
 # ---------------------------------------------------------------------------
 # demo.qsf, Quartus settings file for the MTRX3700 Assignment 1 scaffold.
 # Target: Terasic DE1-SoC, Cyclone V 5CSEMA5F31C6.
@@ -21,7 +22,6 @@
 
 set_global_assignment -name FAMILY "Cyclone V"
 set_global_assignment -name DEVICE 5CSEMA5F31C6
-set_global_assignment -name TOP_LEVEL_ENTITY demo_top
 set_global_assignment -name PROJECT_OUTPUT_DIRECTORY output_files
 set_global_assignment -name MIN_CORE_JUNCTION_TEMP 0
 set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
@@ -29,14 +29,21 @@ set_global_assignment -name MAX_CORE_JUNCTION_TEMP 85
 # Design files -- add every source file you write to this list.
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/demo_top.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/button_conditioner.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/switch_conditioner.sv
+set_global_assignment -name VERILOG_FILE rtl/debounce.v
+set_global_assignment -name VERILOG_FILE rtl/synchroniser.v
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/hit_flash.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/lane_fsm.sv
-set_global_assignment -name SYSTEMVERILOG_FILE rtl/switch_conditioner.sv
 set_global_assignment -name SYSTEMVERILOG_FILE rtl/beat_gen.sv
 set_global_assignment -name VERILOG_FILE rtl/timer.v
 set_global_assignment -name VERILOG_FILE rtl/blinker.v
-set_global_assignment -name VERILOG_FILE rtl/debounce.v
-set_global_assignment -name VERILOG_FILE rtl/synchroniser.v
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/game_core.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/score_handler.sv
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/score_multiplier_fsm.sv
+set_global_assignment -name VERILOG_FILE rtl/piano_keys_display.v
+set_global_assignment -name VERILOG_FILE rtl/seven_seg.v
+set_global_assignment -name VERILOG_FILE rtl/rng.v
+set_global_assignment -name SYSTEMVERILOG_FILE rtl/sequencer.sv
 set_global_assignment -name SDC_FILE demo.sdc
 
 # Unused pins driven as tri-stated inputs: the safe default on a board where you
@@ -53,18 +60,18 @@ set_location_assignment PIN_AF14 -to CLOCK_50
 # ---------------- Push buttons (active-low) ----------------
 set_location_assignment PIN_AA14 -to KEY[0]
 set_location_assignment PIN_AA15 -to KEY[1]
-set_location_assignment PIN_W15  -to KEY[2]
-set_location_assignment PIN_Y16  -to KEY[3]
+set_location_assignment PIN_W15 -to KEY[2]
+set_location_assignment PIN_Y16 -to KEY[3]
 
 # ---------------- Slide switches ----------------
 set_location_assignment PIN_AB12 -to SW[0]
 set_location_assignment PIN_AC12 -to SW[1]
-set_location_assignment PIN_AF9  -to SW[2]
+set_location_assignment PIN_AF9 -to SW[2]
 set_location_assignment PIN_AF10 -to SW[3]
 set_location_assignment PIN_AD11 -to SW[4]
 set_location_assignment PIN_AD12 -to SW[5]
 set_location_assignment PIN_AE11 -to SW[6]
-set_location_assignment PIN_AC9  -to SW[7]
+set_location_assignment PIN_AC9 -to SW[7]
 set_location_assignment PIN_AD10 -to SW[8]
 set_location_assignment PIN_AE12 -to SW[9]
 
@@ -114,16 +121,16 @@ set_location_assignment PIN_AB25 -to HEX3[5]
 set_location_assignment PIN_AB22 -to HEX3[6]
 
 set_location_assignment PIN_AA24 -to HEX4[0]
-set_location_assignment PIN_Y23  -to HEX4[1]
-set_location_assignment PIN_Y24  -to HEX4[2]
-set_location_assignment PIN_W22  -to HEX4[3]
-set_location_assignment PIN_W24  -to HEX4[4]
-set_location_assignment PIN_V23  -to HEX4[5]
-set_location_assignment PIN_W25  -to HEX4[6]
+set_location_assignment PIN_Y23 -to HEX4[1]
+set_location_assignment PIN_Y24 -to HEX4[2]
+set_location_assignment PIN_W22 -to HEX4[3]
+set_location_assignment PIN_W24 -to HEX4[4]
+set_location_assignment PIN_V23 -to HEX4[5]
+set_location_assignment PIN_W25 -to HEX4[6]
 
-set_location_assignment PIN_V25  -to HEX5[0]
+set_location_assignment PIN_V25 -to HEX5[0]
 set_location_assignment PIN_AA28 -to HEX5[1]
-set_location_assignment PIN_Y27  -to HEX5[2]
+set_location_assignment PIN_Y27 -to HEX5[2]
 set_location_assignment PIN_AB27 -to HEX5[3]
 set_location_assignment PIN_AB26 -to HEX5[4]
 set_location_assignment PIN_AA26 -to HEX5[5]
@@ -135,8 +142,8 @@ set_location_assignment PIN_AA25 -to HEX5[6]
 
 # ---------------- Extra 50 MHz clock inputs ----------------
 set_location_assignment PIN_AA16 -to CLOCK2_50
-set_location_assignment PIN_Y26  -to CLOCK3_50
-set_location_assignment PIN_K14  -to CLOCK4_50
+set_location_assignment PIN_Y26 -to CLOCK3_50
+set_location_assignment PIN_K14 -to CLOCK4_50
 
 # ---------------- VGA output (ADV7123 video DAC) ----------------
 set_location_assignment PIN_A13 -to VGA_R[0]
@@ -147,7 +154,7 @@ set_location_assignment PIN_C12 -to VGA_R[4]
 set_location_assignment PIN_D12 -to VGA_R[5]
 set_location_assignment PIN_E12 -to VGA_R[6]
 set_location_assignment PIN_F13 -to VGA_R[7]
-set_location_assignment PIN_J9  -to VGA_G[0]
+set_location_assignment PIN_J9 -to VGA_G[0]
 set_location_assignment PIN_J10 -to VGA_G[1]
 set_location_assignment PIN_H12 -to VGA_G[2]
 set_location_assignment PIN_G10 -to VGA_G[3]
@@ -170,28 +177,28 @@ set_location_assignment PIN_F10 -to VGA_BLANK_N
 set_location_assignment PIN_C10 -to VGA_SYNC_N
 
 # ---------------- Audio codec (WM8731; configured over FPGA_I2C) ----------------
-set_location_assignment PIN_K7  -to AUD_ADCDAT
-set_location_assignment PIN_K8  -to AUD_ADCLRCK
-set_location_assignment PIN_H7  -to AUD_BCLK
-set_location_assignment PIN_J7  -to AUD_DACDAT
-set_location_assignment PIN_H8  -to AUD_DACLRCK
-set_location_assignment PIN_G7  -to AUD_XCK
+set_location_assignment PIN_K7 -to AUD_ADCDAT
+set_location_assignment PIN_K8 -to AUD_ADCLRCK
+set_location_assignment PIN_H7 -to AUD_BCLK
+set_location_assignment PIN_J7 -to AUD_DACDAT
+set_location_assignment PIN_H8 -to AUD_DACLRCK
+set_location_assignment PIN_G7 -to AUD_XCK
 set_location_assignment PIN_J12 -to FPGA_I2C_SCLK
 set_location_assignment PIN_K12 -to FPGA_I2C_SDAT
 
 # ---------------- TV decoder (ADV7180, 27 MHz composite video in) ----------------
 set_location_assignment PIN_H15 -to TD_CLK27
-set_location_assignment PIN_D2  -to TD_DATA[0]
-set_location_assignment PIN_B1  -to TD_DATA[1]
-set_location_assignment PIN_E2  -to TD_DATA[2]
-set_location_assignment PIN_B2  -to TD_DATA[3]
-set_location_assignment PIN_D1  -to TD_DATA[4]
-set_location_assignment PIN_E1  -to TD_DATA[5]
-set_location_assignment PIN_C2  -to TD_DATA[6]
-set_location_assignment PIN_B3  -to TD_DATA[7]
-set_location_assignment PIN_A5  -to TD_HS
-set_location_assignment PIN_A3  -to TD_VS
-set_location_assignment PIN_F6  -to TD_RESET_N
+set_location_assignment PIN_D2 -to TD_DATA[0]
+set_location_assignment PIN_B1 -to TD_DATA[1]
+set_location_assignment PIN_E2 -to TD_DATA[2]
+set_location_assignment PIN_B2 -to TD_DATA[3]
+set_location_assignment PIN_D1 -to TD_DATA[4]
+set_location_assignment PIN_E1 -to TD_DATA[5]
+set_location_assignment PIN_C2 -to TD_DATA[6]
+set_location_assignment PIN_B3 -to TD_DATA[7]
+set_location_assignment PIN_A5 -to TD_HS
+set_location_assignment PIN_A3 -to TD_VS
+set_location_assignment PIN_F6 -to TD_RESET_N
 
 # ---------------- ADC (LTC2308, 8-channel 12-bit, SPI) ----------------
 set_location_assignment PIN_AJ4 -to ADC_CS_N
@@ -225,22 +232,22 @@ set_location_assignment PIN_AH13 -to DRAM_ADDR[11]
 set_location_assignment PIN_AJ14 -to DRAM_ADDR[12]
 set_location_assignment PIN_AF13 -to DRAM_BA[0]
 set_location_assignment PIN_AJ12 -to DRAM_BA[1]
-set_location_assignment PIN_AK6  -to DRAM_DQ[0]
-set_location_assignment PIN_AJ7  -to DRAM_DQ[1]
-set_location_assignment PIN_AK7  -to DRAM_DQ[2]
-set_location_assignment PIN_AK8  -to DRAM_DQ[3]
-set_location_assignment PIN_AK9  -to DRAM_DQ[4]
+set_location_assignment PIN_AK6 -to DRAM_DQ[0]
+set_location_assignment PIN_AJ7 -to DRAM_DQ[1]
+set_location_assignment PIN_AK7 -to DRAM_DQ[2]
+set_location_assignment PIN_AK8 -to DRAM_DQ[3]
+set_location_assignment PIN_AK9 -to DRAM_DQ[4]
 set_location_assignment PIN_AG10 -to DRAM_DQ[5]
 set_location_assignment PIN_AK11 -to DRAM_DQ[6]
 set_location_assignment PIN_AJ11 -to DRAM_DQ[7]
 set_location_assignment PIN_AH10 -to DRAM_DQ[8]
 set_location_assignment PIN_AJ10 -to DRAM_DQ[9]
-set_location_assignment PIN_AJ9  -to DRAM_DQ[10]
-set_location_assignment PIN_AH9  -to DRAM_DQ[11]
-set_location_assignment PIN_AH8  -to DRAM_DQ[12]
-set_location_assignment PIN_AH7  -to DRAM_DQ[13]
-set_location_assignment PIN_AJ6  -to DRAM_DQ[14]
-set_location_assignment PIN_AJ5  -to DRAM_DQ[15]
+set_location_assignment PIN_AJ9 -to DRAM_DQ[10]
+set_location_assignment PIN_AH9 -to DRAM_DQ[11]
+set_location_assignment PIN_AH8 -to DRAM_DQ[12]
+set_location_assignment PIN_AH7 -to DRAM_DQ[13]
+set_location_assignment PIN_AJ6 -to DRAM_DQ[14]
+set_location_assignment PIN_AJ5 -to DRAM_DQ[15]
 set_location_assignment PIN_AB13 -to DRAM_LDQM
 set_location_assignment PIN_AK12 -to DRAM_UDQM
 set_location_assignment PIN_AF11 -to DRAM_CAS_N
@@ -255,9 +262,9 @@ set_location_assignment PIN_AA12 -to FAN_CTRL
 
 # ---------------- GPIO expansion header 0 (40-pin, 36 I/O) ----------------
 set_location_assignment PIN_AC18 -to GPIO_0[0]
-set_location_assignment PIN_Y17  -to GPIO_0[1]
+set_location_assignment PIN_Y17 -to GPIO_0[1]
 set_location_assignment PIN_AD17 -to GPIO_0[2]
-set_location_assignment PIN_Y18  -to GPIO_0[3]
+set_location_assignment PIN_Y18 -to GPIO_0[3]
 set_location_assignment PIN_AK16 -to GPIO_0[4]
 set_location_assignment PIN_AK18 -to GPIO_0[5]
 set_location_assignment PIN_AK19 -to GPIO_0[6]
@@ -362,5 +369,7 @@ set_global_assignment -name LAST_QUARTUS_VERSION "18.1.0 Lite Edition"
 set_global_assignment -name PARTITION_NETLIST_TYPE SOURCE -section_id Top
 set_global_assignment -name PARTITION_FITTER_PRESERVATION_LEVEL PLACEMENT_AND_ROUTING -section_id Top
 set_global_assignment -name PARTITION_COLOR 16764057 -section_id Top
+
+
 
 set_instance_assignment -name PARTITION_HIERARCHY root_partition -to | -section_id Top
