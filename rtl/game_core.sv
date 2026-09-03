@@ -4,8 +4,8 @@ module game_core #(
     parameter SUBBEATS_PER_BEAT  = 6,
     parameter CLKS_PER_MS        = 50000,
     parameter WINDOW_HALF_TICKS  = 3,
-    parameter PERFECT_START_TICK = SUBBEATS_PER_BEAT,
-    parameter PERFECT_END_TICK   = SUBBEATS_PER_BEAT + 1,
+    parameter PERFECT_START_TICK = 5,
+    parameter PERFECT_END_TICK   = 7,
     parameter HIT_FLASH_TICKS    = 4
 ) (
     input  logic clk,

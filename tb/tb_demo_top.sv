@@ -28,7 +28,7 @@ module tb_demo_top;
 
         .WINDOW_HALF_TICKS(3),
 
-        .PERFECT_START_TICK(6),
+        .PERFECT_START_TICK(5),
         .PERFECT_END_TICK(7),
 
         .HIT_FLASH_TICKS(2),

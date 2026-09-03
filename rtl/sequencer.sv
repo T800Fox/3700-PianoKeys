@@ -42,7 +42,7 @@ module sequencer #(
 
 
     logic [11:0] lane_data [0:3][0:SONG_MEM_SIZE-1];
-    logic [11:0] sequence_data [0:(SONG_MEM_SIZE*NUM_SONGS)-1];
+    reg [11:0] sequence_data [0:(SONG_MEM_SIZE*NUM_SONGS)-1];
 
     logic [7:0] num_notes;
     logic [3:0] count_in;
@@ -75,16 +75,9 @@ module sequencer #(
     logic [3:0] reset_val;
 
 
-    // --------------------------------------------------------
     // Difficulty
-    //
-    // Easy   nominally 6..9
-    // Medium nominally 3..6
-    // Hard   nominally 1..3
-    //
     // Values are clamped to delta_lane when the musical spacing
     // does not permit the full nominal warning period.
-    // --------------------------------------------------------
 
     logic [3:0] diff_rng_bounds [0:3];
 
@@ -127,24 +120,10 @@ module sequencer #(
 
     initial begin
 
+        // Three songs packed into one Quartus-friendly ROM.
+        $readmemh("rtl/midi_data/all_songs.hex", sequence_data);
+
         // Continuous three-song memory.
-        $readmemh(
-            "rtl/midi_data/gy.txt",
-            sequence_data,
-            0*SONG_MEM_SIZE
-        );
-
-        $readmemh(
-            "rtl/midi_data/jaspers_song.txt",
-            sequence_data,
-            1*SONG_MEM_SIZE
-        );
-
-        $readmemh(
-            "rtl/midi_data/twinkle.txt",
-            sequence_data,
-            2*SONG_MEM_SIZE
-        );
 
 
         diff_rng_bounds[0] = 4'd9;
@@ -172,10 +151,7 @@ module sequencer #(
         score_time_playback = 0;
     end
 
-
-    // --------------------------------------------------------
     // State transition logic
-    // --------------------------------------------------------
 
     always_comb begin
 
@@ -216,9 +192,7 @@ module sequencer #(
     end
 
 
-    // --------------------------------------------------------
     // Current event decoding during INIT
-    // --------------------------------------------------------
 
     always_comb begin
 
@@ -270,9 +244,7 @@ module sequencer #(
     end
 
 
-    // --------------------------------------------------------
     // Playback combinational logic
-    // --------------------------------------------------------
 
     integer lane_i;
 
@@ -315,9 +287,7 @@ module sequencer #(
     end
 
 
-    // --------------------------------------------------------
     // Sequential song build/playback logic
-    // --------------------------------------------------------
 
     always_ff @(posedge clk) begin
 

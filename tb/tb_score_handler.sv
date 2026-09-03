@@ -102,17 +102,17 @@ module tb_score_handler;
 
         send_l0(PERFECT);
 
-        if (score !== 3)
+        if (score !== 2)
             $fatal(
                 1,
-                "FAIL: X1 perfect should add two"
+                "FAIL: X1 perfect should add one"
             );
 
 
         send_l0(PERFECT);
 
         if (
-            score !== 5 ||
+            score !== 3 ||
             curr_multi_state !== 2'b01
         )
             $fatal(
@@ -123,16 +123,16 @@ module tb_score_handler;
 
         send_l0(PERFECT);
 
-        if (score !== 9)
+        if (score !== 5)
             $fatal(
                 1,
-                "FAIL: X2 perfect should add four"
+                "FAIL: X2 perfect should add two"
             );
 
 
         send_l0(POOR);
 
-        if (score !== 9)
+        if (score !== 5)
             $fatal(
                 1,
                 "FAIL: poor hit should not add score"
@@ -141,7 +141,7 @@ module tb_score_handler;
 
         send_l0(BAD);
 
-        if (score !== 8)
+        if (score !== 4)
             $fatal(
                 1,
                 "FAIL: bad hit should subtract one"

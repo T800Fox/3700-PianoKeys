@@ -107,12 +107,12 @@ module score_handler #(
 
                     if (
                         score >=
-                        MAX_SCORE - (2 * multiplier)
+                        MAX_SCORE - multiplier
                     )
                         score <= MAX_SCORE;
                     else
                         score <=
-                            score + (2 * multiplier);
+                            score + multiplier;
 
                 end
 

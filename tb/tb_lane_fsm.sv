@@ -4,8 +4,8 @@ module tb_lane_fsm;
     localparam COUNTDOWN_WIDTH = 4;
     localparam SUBBEATS_PER_BEAT = 6;
     localparam WINDOW_HALF_TICKS = 3;
-    localparam PERFECT_START_TICK = SUBBEATS_PER_BEAT;
-    localparam PERFECT_END_TICK = SUBBEATS_PER_BEAT + 1;
+    localparam PERFECT_START_TICK = 5;
+    localparam PERFECT_END_TICK = 7;
     localparam HIT_FLASH_TICKS = 3;
     localparam HIT_END_TICK = SUBBEATS_PER_BEAT + WINDOW_HALF_TICKS;
 
@@ -138,16 +138,16 @@ module tb_lane_fsm;
 
         apply_reset();
         request_spawn(1);
-        advance_subbeats(SUBBEATS_PER_BEAT);
+        advance_subbeats(3);
         press_key();
-        if (!quality_valid || hit_quality !== QUALITY_PERFECT ||
+        if (!quality_valid || hit_quality !== QUALITY_NORMAL ||
             display_value !== DISPLAY_BLANK || !hit_led)
-            $fatal(1, "FAIL test 6: first zero tick was not perfect");
+            $fatal(1, "FAIL test 6: hit-window start was not normal");
         press_key();
         if (!quality_valid || hit_quality !== QUALITY_BAD ||
             display_value !== DISPLAY_BLANK)
             $fatal(1, "FAIL test 6: repeated press was not bad");
-        $display("PASS test 6: zero-window hit resolves once and mashing is bad");
+        $display("PASS test 6: normal hit resolves once and mashing is bad");
 
         apply_reset();
         request_spawn(1);
@@ -168,7 +168,7 @@ module tb_lane_fsm;
         press_key();
         if (!quality_valid || hit_quality !== QUALITY_NORMAL)
             $fatal(1, "FAIL test 7: perfect end was not exclusive");
-        $display("PASS test 7: perfect first-zero window is correct");
+        $display("PASS test 7: perfect range straddles transition");
 
         apply_reset();
         request_spawn(1);
@@ -198,12 +198,12 @@ module tb_lane_fsm;
 
         apply_reset();
         request_spawn(1);
-        advance_subbeats(SUBBEATS_PER_BEAT);
+        advance_subbeats(3);
         press_key();
         request_spawn(5);
         if (display_value !== DISPLAY_BLANK)
             $fatal(1, "FAIL test 10: queued note appeared before slot ended");
-        advance_subbeats(HIT_END_TICK - SUBBEATS_PER_BEAT);
+        advance_subbeats(HIT_END_TICK - 3);
         if (display_value !== 5)
             $fatal(1, "FAIL test 10: queued note did not appear at slot end");
         $display("PASS test 10: hit blanks until fixed slot ends");

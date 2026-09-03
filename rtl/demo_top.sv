@@ -17,14 +17,14 @@ module demo_top #(
 
     parameter WINDOW_HALF_TICKS           = 3,
 
-    // Perfect is the first subbeat for which the lane displays 0.
-    parameter PERFECT_START_TICK          = SUBBEATS_PER_BEAT,
-    parameter PERFECT_END_TICK            = SUBBEATS_PER_BEAT + 1,
+    // Perfect is the first subbeat for which the lane displays 0
+    parameter PERFECT_START_TICK          = 5,
+    parameter PERFECT_END_TICK            = 7,
 
     parameter HIT_FLASH_TICKS             = 4,
     parameter MAX_SCORE                   = 99,
 
-    // Exposed so the full-system test can shorten physical input delays.
+    // Exposed so the full-system test can shorten physical input delays
     parameter DEBOUNCE_COUNTS             = 2500,
     parameter SWITCH_RELEASE_COUNTS       = 2500
 ) (
@@ -94,9 +94,7 @@ module demo_top #(
     logic [3:0] lane_3_display;
 
 
-    // --------------------------------------------------------
     // Physical switch selections
-    // --------------------------------------------------------
 
     assign difficulty_select =
         (SW[9:8] > 2) ? 2'd2 : SW[9:8];
@@ -111,10 +109,7 @@ module demo_top #(
         (difficulty_select == 2'd1) ? 3'b010 :
                                       3'b100;
 
-
-    // --------------------------------------------------------
-    // Game/button gating
-    // --------------------------------------------------------
+    // button gating
 
     assign lane_press_pulses =
         press_pulses & {4{game_active}};
@@ -136,10 +131,7 @@ module demo_top #(
         sequencer_beat_reset |
         ~(count_active | game_active);
 
-
-    // --------------------------------------------------------
     // SW0 reset conditioning
-    // --------------------------------------------------------
 
     switch_conditioner #(
         .RELEASE_COUNTS(SWITCH_RELEASE_COUNTS)
@@ -149,10 +141,7 @@ module demo_top #(
         .switch_state(reset)
     );
 
-
-    // --------------------------------------------------------
     // KEY conditioning
-    // --------------------------------------------------------
 
     genvar b;
     generate
@@ -169,9 +158,7 @@ module demo_top #(
     endgenerate
 
 
-    // --------------------------------------------------------
     // Song-dependent musical timing
-    // --------------------------------------------------------
 
     beat_gen #(
         .MS_PER_SUBBEAT(MS_PER_SUBBEAT),
@@ -217,9 +204,7 @@ module demo_top #(
                                 gy_subbeat_tick;
 
 
-    // --------------------------------------------------------
     // Song sequencer
-    // --------------------------------------------------------
 
     sequencer #(
         .NUM_SONGS(3),
@@ -247,9 +232,7 @@ module demo_top #(
     );
 
 
-    // --------------------------------------------------------
     // Four independent lane FSMs
-    // --------------------------------------------------------
 
     genvar i;
     generate
@@ -296,9 +279,7 @@ module demo_top #(
     endgenerate
 
 
-    // --------------------------------------------------------
     // Score + multiplier
-    // --------------------------------------------------------
 
     score_handler #(
         .MAX_SCORE(MAX_SCORE)
@@ -323,13 +304,10 @@ module demo_top #(
     );
 
 
-    // --------------------------------------------------------
     // Lane displays
     //
     // lane_fsm itself outputs value 10 when inactive.
     // During COUNT_IN the sequencer count overrides all lanes.
-    // --------------------------------------------------------
-
     assign lane_0_display =
         count_active ? count_val :
         display_values[0*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH];
@@ -347,9 +325,7 @@ module demo_top #(
         display_values[3*COUNTDOWN_WIDTH +: COUNTDOWN_WIDTH];
 
 
-    // --------------------------------------------------------
     // Physical display mapping
-    // --------------------------------------------------------
 
     piano_keys_display u_game_display (
         .score_value(game_score),
