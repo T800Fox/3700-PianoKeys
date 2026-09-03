@@ -38,7 +38,7 @@ module lane_fsm #(
 
     state_type current_state, next_state;
 
-    assign ready = (current_state == INACTIVE);
+  assign ready = (current_state == INACTIVE);
     logic [COUNTDOWN_WIDTH-1:0] countdown;
     logic [JUDGEMENT_COUNTER_WIDTH-1:0] judgement_tick;
     logic pending_valid;
