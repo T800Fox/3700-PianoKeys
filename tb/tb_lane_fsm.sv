@@ -6,7 +6,9 @@ module tb_lane_fsm;
     localparam WINDOW_HALF_TICKS = 3;
     localparam PERFECT_START_TICK = 5;
     localparam PERFECT_END_TICK = 7;
-    localparam HIT_FLASH_TICKS = 3;
+    localparam HIT_FLASH_MS = 3;
+    localparam CLKS_PER_MS = 2;
+    localparam HIT_FLASH_CLKS = HIT_FLASH_MS * CLKS_PER_MS;
     localparam HIT_END_TICK = SUBBEATS_PER_BEAT + WINDOW_HALF_TICKS;
 
     localparam logic [1:0] QUALITY_PERFECT = 2'b00;
@@ -28,7 +30,8 @@ module tb_lane_fsm;
         .WINDOW_HALF_TICKS(WINDOW_HALF_TICKS),
         .PERFECT_START_TICK(PERFECT_START_TICK),
         .PERFECT_END_TICK(PERFECT_END_TICK),
-        .HIT_FLASH_TICKS(HIT_FLASH_TICKS)
+        .HIT_FLASH_MS(HIT_FLASH_MS),
+        .CLKS_PER_MS(CLKS_PER_MS)
     ) dut (
         .clk(clk), .reset(reset), .beat_tick(beat_tick),
         .subbeat_tick(subbeat_tick), .press_pulse(press_pulse),
@@ -226,9 +229,9 @@ module tb_lane_fsm;
         press_key();
         if (ready || !hit_led)
             $fatal(1, "FAIL test 12: successful hit did not light LED");
-        advance_subbeats(HIT_FLASH_TICKS - 1);
+        repeat (HIT_FLASH_CLKS - 1) @(posedge clk); #1;
         if (!hit_led) $fatal(1, "FAIL test 12: hit LED ended early");
-        pulse_subbeat();
+        @(posedge clk); #1;
         if (hit_led) $fatal(1, "FAIL test 12: hit LED lasted too long");
         apply_reset();
         if (!ready || display_value !== DISPLAY_BLANK || hit_led || quality_valid)

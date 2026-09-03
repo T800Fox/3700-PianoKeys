@@ -2,20 +2,21 @@
 
 module tb_hit_flash;
 
-    localparam FLASH_TICKS = 3;
+    localparam FLASH_MS = 3;
+    localparam CLKS_PER_MS = 2;
+    localparam FLASH_CLKS = FLASH_MS * CLKS_PER_MS;
 
     logic clk = 0;
     logic reset;
-    logic subbeat_tick;
     logic trigger;
     logic led;
 
     hit_flash #(
-        .FLASH_TICKS(FLASH_TICKS)
+        .FLASH_MS(FLASH_MS),
+        .CLKS_PER_MS(CLKS_PER_MS)
     ) dut (
         .clk(clk),
         .reset(reset),
-        .subbeat_tick(subbeat_tick),
         .trigger(trigger),
         .led(led)
     );
@@ -51,19 +52,9 @@ module tb_hit_flash;
         trigger = 1'b0;
     endtask
 
-    task automatic pulse_subbeat;
-        @(negedge clk);
-        subbeat_tick = 1'b1;
-        @(posedge clk);
-        #1;
-        @(negedge clk);
-        subbeat_tick = 1'b0;
-    endtask
-
     initial begin : test_cases
-        reset        = 1'b0;
-        subbeat_tick = 1'b0;
-        trigger      = 1'b0;
+        reset   = 1'b0;
+        trigger = 1'b0;
 
         // Test 1: reset clears the output.
         apply_reset();
@@ -71,34 +62,32 @@ module tb_hit_flash;
             $fatal(1, "FAIL test 1: reset did not clear LED");
         $display("PASS test 1: reset clears LED");
 
-        // Test 2: trigger starts a flash that ignores ordinary clock cycles.
+        // Test 2: trigger starts a flash immediately.
         pulse_trigger();
         if (led !== 1'b1)
             $fatal(1, "FAIL test 2: trigger did not light LED");
-        repeat (3) @(posedge clk);
-        #1;
-        if (led !== 1'b1)
-            $fatal(1, "FAIL test 2: LED changed without a subbeat tick");
-        $display("PASS test 2: flash advances only on subbeat ticks");
+        $display("PASS test 2: trigger lights LED");
 
-        // Test 3: LED remains on for exactly FLASH_TICKS subbeat ticks.
-        pulse_subbeat();
-        if (!led) $fatal(1, "FAIL test 3: LED ended after one tick");
-        pulse_subbeat();
-        if (!led) $fatal(1, "FAIL test 3: LED ended after two ticks");
-        pulse_subbeat();
+        // Test 3: LED remains on for exactly FLASH_MS * CLKS_PER_MS clocks.
+        repeat (FLASH_CLKS - 1) @(posedge clk);
+        #1;
+        if (!led) $fatal(1, "FAIL test 3: LED ended early");
+        @(posedge clk);
+        #1;
         if (led) $fatal(1, "FAIL test 3: LED exceeded configured duration");
         $display("PASS test 3: configured flash duration is exact");
 
         // Test 4: a new trigger restarts an active flash from full duration.
         pulse_trigger();
-        pulse_subbeat();
-        pulse_subbeat();
+        repeat (FLASH_CLKS - 2) @(posedge clk);
+        #1;
         if (!led) $fatal(1, "FAIL test 4: setup flash ended too early");
         pulse_trigger();
-        repeat (2) pulse_subbeat();
+        repeat (FLASH_CLKS - 1) @(posedge clk);
+        #1;
         if (!led) $fatal(1, "FAIL test 4: retrigger did not restart duration");
-        pulse_subbeat();
+        @(posedge clk);
+        #1;
         if (led) $fatal(1, "FAIL test 4: retriggered flash lasted too long");
         $display("PASS test 4: retrigger restarts the flash");
 

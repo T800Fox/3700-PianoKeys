@@ -31,7 +31,7 @@ module tb_demo_top;
         .PERFECT_START_TICK(5),
         .PERFECT_END_TICK(7),
 
-        .HIT_FLASH_TICKS(2),
+        .HIT_FLASH_MS(2),
 
         .DEBOUNCE_COUNTS(1),
         .SWITCH_RELEASE_COUNTS(1)

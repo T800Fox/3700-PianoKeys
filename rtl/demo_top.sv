@@ -21,7 +21,7 @@ module demo_top #(
     parameter PERFECT_START_TICK          = 5,
     parameter PERFECT_END_TICK            = 7,
 
-    parameter HIT_FLASH_TICKS             = 4,
+    parameter HIT_FLASH_MS                = 300,
     parameter MAX_SCORE                   = 99,
 
     // Exposed so the full-system test can shorten physical input delays
@@ -244,7 +244,8 @@ module demo_top #(
                 .WINDOW_HALF_TICKS(WINDOW_HALF_TICKS),
                 .PERFECT_START_TICK(PERFECT_START_TICK),
                 .PERFECT_END_TICK(PERFECT_END_TICK),
-                .HIT_FLASH_TICKS(HIT_FLASH_TICKS)
+                .HIT_FLASH_MS(HIT_FLASH_MS),
+                .CLKS_PER_MS(CLKS_PER_MS)
             ) u_lane (
                 .clk(CLOCK_50),
                 .reset(reset),

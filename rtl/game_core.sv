@@ -6,7 +6,7 @@ module game_core #(
     parameter WINDOW_HALF_TICKS  = 3,
     parameter PERFECT_START_TICK = 5,
     parameter PERFECT_END_TICK   = 7,
-    parameter HIT_FLASH_TICKS    = 4
+    parameter HIT_FLASH_MS       = 300
 ) (
     input  logic clk,
     input  logic reset,
@@ -57,7 +57,8 @@ module game_core #(
                 .WINDOW_HALF_TICKS(WINDOW_HALF_TICKS),
                 .PERFECT_START_TICK(PERFECT_START_TICK),
                 .PERFECT_END_TICK(PERFECT_END_TICK),
-                .HIT_FLASH_TICKS(HIT_FLASH_TICKS)
+                .HIT_FLASH_MS(HIT_FLASH_MS),
+                .CLKS_PER_MS(CLKS_PER_MS)
             ) u_lane (
                 .clk(clk),
                 .reset(reset),

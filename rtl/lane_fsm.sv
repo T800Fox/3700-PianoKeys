@@ -7,7 +7,8 @@ module lane_fsm #(
     parameter WINDOW_HALF_TICKS = 3,
     parameter PERFECT_START_TICK = 5,
     parameter PERFECT_END_TICK = 7,
-    parameter HIT_FLASH_TICKS = 4
+    parameter HIT_FLASH_MS = 300,
+    parameter CLKS_PER_MS = 50000
 ) (
     input logic clk,
     input logic reset,
@@ -69,9 +70,11 @@ module lane_fsm #(
         endcase
     end
 
-    hit_flash #(.FLASH_TICKS(HIT_FLASH_TICKS)) u_hit_flash (
-        .clk(clk), .reset(reset), .subbeat_tick(subbeat_tick),
-        .trigger(successful_press), .led(hit_led)
+    hit_flash #(
+        .FLASH_MS(HIT_FLASH_MS),
+        .CLKS_PER_MS(CLKS_PER_MS)
+    ) u_hit_flash (
+        .clk(clk), .reset(reset), .trigger(successful_press), .led(hit_led)
     );
 
     always_comb begin
