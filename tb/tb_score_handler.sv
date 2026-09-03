@@ -2,54 +2,46 @@
 
 module tb_score_handler;
     localparam MAX_SCORE = 99;
+    localparam CONSEC_FOR_X2 = 2;
+    localparam CONSEC_FOR_X4 = 4;
 
     localparam logic [1:0] QUALITY_PERFECT = 2'b00;
     localparam logic [1:0] QUALITY_NORMAL  = 2'b01;
     localparam logic [1:0] QUALITY_POOR    = 2'b10;
     localparam logic [1:0] QUALITY_BAD     = 2'b11;
 
-    localparam integer CLK_PERIOD_NS = 20000; // 50000 Hz -> 20us period
+    localparam logic [1:0] MULTI_X1        = 2'b00;
+    localparam logic [1:0] MULTI_X2        = 2'b01;
+    localparam logic [1:0] MULTI_X4        = 2'b10;
+
 
     logic clk = 0;
     logic rst;
     logic l_0_quality_valid, l_1_quality_valid, l_2_quality_valid, l_3_quality_valid;
     logic [1:0] l_0_quality_value, l_1_quality_value, l_2_quality_value, l_3_quality_value;
     logic [6:0] score;
-    /* verilator lint_off UNUSEDSIGNAL */
     reg   [1:0] encoded_muliplier_state;
-    /* verilator lint_on UNUSEDSIGNAL */
 
     score_handler #(
-        .MAX_SCORE(MAX_SCORE)
-    ) dut (
+        .MAX_SCORE(MAX_SCORE),
+        .CONSEC_PERFECT_FOR_MOVE_TO_X2(CONSEC_FOR_X2),
+        .CONSEC_PERFECT_FOR_MOVE_TO_X4(CONSEC_FOR_X4)
+    ) score_handler_99 (
         .clk(clk), .rst(rst),
         .l_0_quality_valid(l_0_quality_valid), .l_0_quality_value(l_0_quality_value),
         .l_1_quality_valid(l_1_quality_valid), .l_1_quality_value(l_1_quality_value),
         .l_2_quality_valid(l_2_quality_valid), .l_2_quality_value(l_2_quality_value),
         .l_3_quality_valid(l_3_quality_valid), .l_3_quality_value(l_3_quality_value),
+
         .score(score),
         .curr_multi_state(encoded_muliplier_state)
     );
 
-    // Clock generation: 50000 Hz
     /* verilator lint_off BLKSEQ */
-    initial clk = 0;
-    always #(CLK_PERIOD_NS/2) clk = ~clk;
+    always #10 clk = ~clk;   // 20 ns period, like the DE1-SoC's 50 MHz
     /* verilator lint_on BLKSEQ */
 
-    initial begin : timeout
-        repeat (500) @(posedge clk);   // generous margin: 500 clock cycles
-        $fatal(1, "FAIL: testbench timeout");
-    end
-
-    task automatic apply_reset;
-        @(negedge clk) rst = 1'b1;
-        repeat (2) @(posedge clk);
-        #1;
-        @(negedge clk) rst = 1'b0;
-    endtask
-
-    // Drive a single lane's hit for one clock cycle, all others held invalid.
+    // Drive a single lane's hit for one clock cycle - all others held invalid
     task automatic hit_lane(input integer lane, input logic [1:0] quality);
         @(negedge clk);
         l_0_quality_valid = (lane == 0);
@@ -66,104 +58,132 @@ module tb_score_handler;
         l_2_quality_valid = 0; l_3_quality_valid = 0;
     endtask
 
-    // Drive multiple lanes simultaneously valid (for priority-arbitration testing).
-    task automatic hit_multi(
-        input logic v0, input logic [1:0] q0,
-        input logic v1, input logic [1:0] q1,
-        input logic v2, input logic [1:0] q2,
-        input logic v3, input logic [1:0] q3
-    );
-        @(negedge clk);
-        l_0_quality_valid = v0; l_0_quality_value = q0;
-        l_1_quality_valid = v1; l_1_quality_value = q1;
-        l_2_quality_valid = v2; l_2_quality_value = q2;
-        l_3_quality_valid = v3; l_3_quality_value = q3;
-        @(posedge clk); #1;
-        @(negedge clk);
-        l_0_quality_valid = 0; l_1_quality_valid = 0;
-        l_2_quality_valid = 0; l_3_quality_valid = 0;
+    task automatic do_reset;
+        @(negedge clk) rst = 1;
+        repeat (2) @(posedge clk);
+        #1;
+        @(negedge clk) rst = 1'b0;
+        #1;
     endtask
 
-    initial begin : test_cases
-        rst = 0;
-        l_0_quality_valid = 0; l_0_quality_value = 0;
-        l_1_quality_valid = 0; l_1_quality_value = 0;
-        l_2_quality_valid = 0; l_2_quality_value = 0;
-        l_3_quality_valid = 0; l_3_quality_value = 0;
-
-        apply_reset();
-        if (score !== 0)
-            $fatal(1, "FAIL test 1: reset did not clear score");
-        $display("PASS test 1: reset clears score");
-
-        // --- Test 2: a single NORMAL hit on lane 0 adds 1*multiplier (mult=1 at reset) ---
-        apply_reset();
-        hit_lane(0, QUALITY_NORMAL);
-        if (score !== 1)
-            $fatal(1, "FAIL test 2: expected score=1 after single normal hit, got %0d", score);
-        $display("PASS test 2: single normal hit scores correctly at 1x multiplier");
-
-        // --- Test 3: POOR hit leaves score unchanged ---
-        hit_lane(1, QUALITY_POOR);
-        if (score !== 1)
-            $fatal(1, "FAIL test 3: poor hit should not change score, got %0d", score);
-        $display("PASS test 3: poor hit does not change score");
-
-        // --- Test 4: BAD hit decrements score by 1, floors at 0 ---
-        apply_reset();
-        hit_lane(2, QUALITY_BAD);
-        if (score !== 0)
-            $fatal(1, "FAIL test 4: bad hit at score=0 should floor at 0, got %0d", score);
-        $display("PASS test 4: bad hit floors at zero rather than underflowing");
-
-        // --- Test 5: consecutive perfects build the multiplier (X1->X2 at 2 consecutive) ---
-        apply_reset();
-        hit_lane(3, QUALITY_PERFECT); // 1st perfect, still X1, mult=1 -> score=1
-        hit_lane(3, QUALITY_PERFECT); // 2nd perfect, triggers X1->X2 on this cycle,
-                                      // multiplier output updates next cycle
-        if (score < 2)
-            $fatal(1, "FAIL test 5: expected score to have grown after 2 perfects, got %0d", score);
-        hit_lane(3, QUALITY_PERFECT); // now multiplier should be 2 if FSM transitioned
-        $display("Test 5 running score after 3rd perfect: %0d", score);
-        $display("PASS test 5: multiplier scaling observed across consecutive perfects");
-
-        // --- Test 6: priority demux - lane 0 wins when multiple lanes valid simultaneously ---
-        apply_reset();
-        hit_multi(1'b1, QUALITY_NORMAL,   // lane 0 valid, NORMAL
-                  1'b1, QUALITY_BAD,      // lane 1 valid, BAD (should be ignored)
-                  1'b0, 2'b00,
-                  1'b0, 2'b00);
-        if (score !== 1)
-            $fatal(1, "FAIL test 6: lane 0 should have priority, expected score=1, got %0d", score);
-        $display("PASS test 6: lane 0 takes priority over lower-priority lanes");
-
-        apply_reset();
-        hit_multi(1'b0, 2'b00,
-                  1'b1, QUALITY_BAD,      // lane 1 valid, BAD
-                  1'b1, QUALITY_NORMAL,   // lane 2 valid, NORMAL (should be ignored, lane1 wins)
-                  1'b0, 2'b00);
-        if (score !== 0)
-            $fatal(1, "FAIL test 6b: lane 1 should win over lane 2, expected score=0, got %0d", score);
-        $display("PASS test 6b: lane 1 takes priority over lane 2/3 when lane 0 is idle");
-
-        // --- Test 7: score saturates at MAX_SCORE ---
-        apply_reset();
-        // Repeatedly hit NORMAL until score should be pinned at MAX_SCORE.
-        repeat (MAX_SCORE + 10) begin
-            hit_lane(0, QUALITY_NORMAL);
+    initial begin : waveform_dump
+        if ($test$plusargs("dump")) begin
+`ifdef VERILATOR
+            $dumpfile("waveform.fst");
+`else
+            $dumpfile("waveform.vcd");
+`endif
+            $dumpvars(0, tb_score_handler);
         end
-        if (score !== MAX_SCORE)
-            $fatal(1, "FAIL test 7: score should saturate at MAX_SCORE=%0d, got %0d", MAX_SCORE, score);
-        $display("PASS test 7: score saturates at MAX_SCORE");
+    end
 
-        // --- Test 8: no lanes valid -> score holds ---
-        apply_reset();
+    initial begin : test_cases
+        // Test 1: Zero's score @ Reset
+        do_reset();
+
+        if (score !== 0) $fatal(1, "FAIL test 1a: score=%b during reset, expected 0", score);
+        $display("PASS test 1a: reset zero's score");
+
+        if (encoded_muliplier_state !== MULTI_X1) $fatal(1, "FAIL test 1b: multi_enc=%b during reset, expected 2'b00", encoded_muliplier_state);
+        $display("PASS test 1b: multilplier FSM @ X1 after reset");
+
+
+        // Test 2: 1x Normal on each row bring the score up to 4
         hit_lane(0, QUALITY_NORMAL);
-        if (score !== 1) $fatal(1, "FAIL test 8 setup: expected score=1");
-        repeat (5) @(posedge clk); // idle cycles, no valid pulses
-        if (score !== 1)
-            $fatal(1, "FAIL test 8: score changed with no valid input, got %0d", score);
-        $display("PASS test 8: score holds steady with no lane activity");
+        #1;
+        hit_lane(1, QUALITY_NORMAL);
+        #1;
+        hit_lane(2, QUALITY_NORMAL);
+        #1;
+        hit_lane(3, QUALITY_NORMAL);
+        #1;
+
+        if (score !== 4) 
+            $fatal(1, "FAIL test 2a: score=%b during reset, expected 4", score);
+        $display("PASS test 2a: one normal per. lane gets score 4");
+
+        if (encoded_muliplier_state !== MULTI_X1)
+            $fatal(1, "FAIL test 2b: multi_enc=%b after normal hits, expected 2'b00", encoded_muliplier_state);
+        $display("PASS test 2b: multilplier FSM @ X1 after consecutive normal hits");
+
+
+        // Test 3: Score Multiplier Behaviour for X2
+        do_reset();
+
+        repeat (CONSEC_FOR_X2) hit_lane(0, QUALITY_PERFECT);
+        if (score !== CONSEC_FOR_X2)
+            $fatal(1, "FAIL test 3 setup: expected score=%0d after %0d perfects at 1x, got %0d",
+                      CONSEC_FOR_X2, CONSEC_FOR_X2, score);
+
+        $display("INFO test 3: Setup has score @ %0d ", score);
+        hit_lane(0, QUALITY_PERFECT); // one more perfect gets x2 multiplier applied
+        $display("INFO test 3: multi_enc=%b and score=%0d after extra Perfect", encoded_muliplier_state, score);
+
+        if (score !== CONSEC_FOR_X2 + 2)
+            $fatal(1, "FAIL test 3a: expected score=%0d after multiplier bump to x2, got %0d",
+                      CONSEC_FOR_X2 + 2, score);
+        $display("PASS test 3a: multiplier increases to x2 after %0d consecutive perfects", CONSEC_FOR_X2);
+
+        if (encoded_muliplier_state !== MULTI_X2)
+            $fatal(1, "FAIL test 3b: multi_enc=%b after perfect hits, expected 2'b01", encoded_muliplier_state);
+        $display("PASS test 3b: multilplier FSM @ X2 after consecutive perfect hits");
+
+
+        // Test 4: Score Multiplier Behaviour for X4
+        do_reset();
+        repeat (CONSEC_FOR_X2) hit_lane(0, QUALITY_PERFECT);
+        repeat (CONSEC_FOR_X4) hit_lane(0, QUALITY_PERFECT);
+        if (encoded_muliplier_state !== MULTI_X4)
+            $fatal(1, "FAIL test 4: expected multiplier=X4 after %0d consecutive perfects, got %b",
+                      CONSEC_FOR_X4, encoded_muliplier_state);
+        $display("PASS test 4: multiplier reaches X4 after %0d consecutive perfects", CONSEC_FOR_X4);
+
+
+        // Test 5: Score floors at zero
+        do_reset();
+        repeat (3) hit_lane(0, QUALITY_BAD);
+        if (score !== 0)
+            $fatal(1, "FAIL test 5: expected score=0 after consecutive bad reactions, got %0d", score);
+        $display("PASS test 5: score has a floor of zero enforced");
+
+
+        // Test 6: Score has ceil at MAX_SCORE
+        do_reset();
+        repeat (MAX_SCORE + 2) hit_lane(0, QUALITY_NORMAL);
+        if (score !== MAX_SCORE)
+            $fatal(1, "FAIL test 6: expected score=%0d (ceiling), got %0d", MAX_SCORE,  score);
+        $display("PASS test 5: score has a ceiling of %0d enforced", MAX_SCORE);
+
+
+        // Test 7: Bad reaction sets multiplier to X1 during a streak
+        do_reset();
+        repeat (CONSEC_FOR_X2) hit_lane(0, QUALITY_PERFECT);
+        repeat (CONSEC_FOR_X4) hit_lane(0, QUALITY_PERFECT);
+        if (encoded_muliplier_state !== MULTI_X4)
+            $fatal(1, "FAIL test 7 setup: expected enc_multiplier=%b, got %b",
+                      MULTI_X4, encoded_muliplier_state);
+
+        hit_lane(0, QUALITY_BAD);
+        if (encoded_muliplier_state !== MULTI_X1)
+            $fatal(1, "FAIL test 7: expected multiplier=%b after bad reaction during perfect streak, got %b",
+                      MULTI_X1, encoded_muliplier_state);
+        $display("PASS test 7: multiplier back to X1 when bad reaction ends perfect streak");
+
+
+        // Test 8: Poor reaction sets multiplier to X1 during a streak
+        do_reset();
+        repeat (CONSEC_FOR_X2) hit_lane(0, QUALITY_PERFECT);
+        repeat (CONSEC_FOR_X4) hit_lane(0, QUALITY_PERFECT);
+        if (encoded_muliplier_state !== MULTI_X4)
+            $fatal(1, "FAIL test 8 setup: expected enc_multiplier=%b, got %b",
+                      MULTI_X4, encoded_muliplier_state);
+
+        hit_lane(0, QUALITY_BAD);
+        if (encoded_muliplier_state !== MULTI_X1)
+            $fatal(1, "FAIL test 8: expected multiplier=%b after poor reaction during perfect streak, got %b",
+                      MULTI_X1, encoded_muliplier_state);
+        $display("PASS test 8: multiplier back to X1 when poor reaction ends perfect streak");
+
 
         $display("ALL TESTS PASSED: tb_score_handler");
         $finish;

@@ -1,12 +1,16 @@
 `timescale 1ns/1ps
 module tb_score_multiplier_fsm;
+    localparam CONSEC_FOR_X2 = 2;
+    localparam CONSEC_FOR_X4 = 4;
 
     localparam logic [1:0] QUALITY_PERFECT = 2'b00;
     localparam logic [1:0] QUALITY_NORMAL  = 2'b01;
     localparam logic [1:0] QUALITY_POOR    = 2'b10;
     localparam logic [1:0] QUALITY_BAD     = 2'b11;
 
-    localparam integer CLK_PERIOD_NS = 20000; // 50000 Hz -> 20us period
+    localparam logic [1:0] MULTI_X1        = 2'b00;
+    localparam logic [1:0] MULTI_X2        = 2'b01;
+    localparam logic [1:0] MULTI_X4        = 2'b10;
 
     logic       clk;
     logic       rst;
@@ -16,8 +20,8 @@ module tb_score_multiplier_fsm;
     reg   [1:0] encoded_muliplier_state;
 
     score_multiplier_fsm #(
-        .CONSEC_PERFECT_TO_2(2),
-        .CONSEC_PERFECT_TO_4(4)
+        .CONSEC_PERFECT_TO_2(CONSEC_FOR_X2),
+        .CONSEC_PERFECT_TO_4(CONSEC_FOR_X4)
     ) DUT (
         .rst(rst),
         .clk(clk),
@@ -27,13 +31,11 @@ module tb_score_multiplier_fsm;
         .enc_curr_state(encoded_muliplier_state)
     );
 
-    // Clock generation: 50000 Hz
     /* verilator lint_off BLKSEQ */
-    initial clk = 0;
-    always #(CLK_PERIOD_NS/2) clk = ~clk;
+    always #10 clk = ~clk;   // 20 ns period, like the DE1-SoC's 50 MHz
     /* verilator lint_on BLKSEQ */
 
-    // Helper task: drive one "reaction" event and wait for it to be sampled
+    // drive reaction event and wait for it to be sampled
     task automatic send_reaction(input logic [1:0] quality);
         begin
             @(negedge clk);
@@ -44,7 +46,7 @@ module tb_score_multiplier_fsm;
         end
     endtask
 
-    // Helper task: let N clock cycles pass with reaction_valid low (should have no effect)
+    // let N clock cycles pass with reaction_valid low 
     task automatic idle_cycles(input integer n);
         integer i;
         begin
@@ -55,64 +57,91 @@ module tb_score_multiplier_fsm;
         end
     endtask
 
+    task automatic do_reset;
+        @(negedge clk) rst = 1;
+        repeat (2) @(posedge clk);
+        #1;
+        @(negedge clk) rst = 1'b0;
+        #1;
+    endtask
+
+    initial begin : waveform_dump
+        if ($test$plusargs("dump")) begin
+`ifdef VERILATOR
+            $dumpfile("waveform.fst");
+`else
+            $dumpfile("waveform.vcd");
+`endif
+            $dumpvars(0, tb_score_multiplier_fsm);
+        end
+    end
+
     initial begin
-        $dumpfile("waveform.vcd");
-        $dumpvars(0, score_multiplier_fsm_tb);
 
-        // Reset
-        rst              = 1'b1;
-        reaction_valid   = 1'b0;
-        reaction_quality = QUALITY_NORMAL;
-        repeat (2) @(negedge clk);
-        rst = 1'b0;
-
-        // --- Confirm idle cycles with reaction_valid=0 don't change state ---
+        // Test 1: Idle cycles after a reset don't change a state
+        do_reset();
         idle_cycles(5);
 
-        // --- Drive X1 -> X2 (needs CONSEC_PERFECT_TO_2 = 2 consecutive perfects) ---
-        send_reaction(QUALITY_PERFECT);
-        send_reaction(QUALITY_PERFECT);   // should trigger X1 -> X2
+        if (encoded_muliplier_state !== MULTI_X1)
+            $fatal(1, "FAIL test 1: multi_enc=%b after reset and idle cycles, expected %b", 
+            encoded_muliplier_state, MULTI_X1);
+        $display("PASS test 1: multilplier FSM @ X1 after reset and idle cycles");
 
-        idle_cycles(3); // verify holding state with no valid pulses
 
-        // --- Drive X2 -> X4 (needs CONSEC_PERFECT_TO_4 = 4 consecutive perfects) ---
-        send_reaction(QUALITY_PERFECT);
-        send_reaction(QUALITY_PERFECT);
-        send_reaction(QUALITY_PERFECT);
-        send_reaction(QUALITY_PERFECT);   // should trigger X2 -> X4
-
+        // Test 2: Drive X1 to X2
+        do_reset();
+        repeat (CONSEC_FOR_X2) send_reaction(QUALITY_PERFECT);
         idle_cycles(3);
 
-        // --- Confirm X4 holds on PERFECT/NORMAL ---
-        send_reaction(QUALITY_PERFECT);
+        if (encoded_muliplier_state !== MULTI_X2)
+            $fatal(1, "FAIL test 2: multi_enc=%b after %2d perfect reactions, expected %b", 
+            encoded_muliplier_state, CONSEC_FOR_X2, MULTI_X2);
+        $display("PASS test 2: multilplier FSM @ X2 after reset and %2d perfect reations",
+        CONSEC_FOR_X2);
+        
+
+        // Test 3: Drive X1 to X2 to X4
+        do_reset();
+        repeat (CONSEC_FOR_X2) send_reaction(QUALITY_PERFECT);
+        repeat (CONSEC_FOR_X4) send_reaction(QUALITY_PERFECT);
+        idle_cycles(3);
+
+        if (encoded_muliplier_state !== MULTI_X4)
+            $fatal(1, "FAIL test 3: multi_enc=%b after stacked perfect reactions, expected %b", 
+            encoded_muliplier_state, MULTI_X4);
+        $display("PASS test 3: multilplier FSM @ X4 after reset and stacked perfect reations");
+
+
+        // Test 4: Normal reactions maintain mutliplier state
+        do_reset();
+        repeat (CONSEC_FOR_X2) send_reaction(QUALITY_PERFECT);
+        repeat (CONSEC_FOR_X4) send_reaction(QUALITY_PERFECT);
+        idle_cycles(3);
         send_reaction(QUALITY_NORMAL);
+        idle_cycles(3);
 
-        // --- Confirm X4 -> X1 on POOR ---
-        send_reaction(QUALITY_POOR);
+        if (encoded_muliplier_state !== MULTI_X4)
+            $fatal(1, "FAIL test 4: multi_enc=%b after stacked perfect reactions than normal, expected %b", 
+            encoded_muliplier_state, MULTI_X4);
+        $display("PASS test 4: normal reaction maintains multiplier");
 
-        idle_cycles(2);
 
-        // --- Confirm a broken perfect streak resets the counter (X1, needs fresh streak) ---
-        send_reaction(QUALITY_PERFECT);
-        send_reaction(QUALITY_NORMAL);   // resets consecutive count
-        send_reaction(QUALITY_PERFECT);
-        send_reaction(QUALITY_PERFECT);  // should now trigger X1 -> X2 again
-
-        idle_cycles(5);
-
+        // Test 5: Bad reactions reset multiplier 
+        do_reset();
+        repeat (CONSEC_FOR_X2) send_reaction(QUALITY_PERFECT);
+        repeat (CONSEC_FOR_X4) send_reaction(QUALITY_PERFECT);
+        idle_cycles(3);
         send_reaction(QUALITY_BAD);
-        send_reaction(QUALITY_BAD);
-        send_reaction(QUALITY_BAD);
+        idle_cycles(3);
 
+        if (encoded_muliplier_state !== MULTI_X1)
+            $fatal(1, "FAIL test 5: multi_enc=%b after stacked perfect reactions than bad, expected %b", 
+            encoded_muliplier_state, MULTI_X1);
+        $display("PASS test 5: bad reaction sets multiplier to X1");
+
+
+        $display("ALL TESTS PASSED: tb_score_multiplier_fsm");
         $finish;
     end
-
-    // Simple console trace for quick sanity checking alongside the waveform
-    always @(posedge clk) begin
-        if (!rst)
-            $display("t=%0t | valid=%b quality=%b | state_mult=%0d",
-                       $time, reaction_valid, reaction_quality, current_multiplier);
-    end
-
 endmodule
 

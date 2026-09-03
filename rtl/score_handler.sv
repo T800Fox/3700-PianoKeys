@@ -1,7 +1,7 @@
 module score_handler #(
 	parameter MAX_SCORE=99,
-	parameter CONSEC_PERFECT_FOR_MOVE_TO_X2=2,
-	parameter CONSEC_PERFECT_FOR_MOVE_TO_X4=4,
+	parameter CONSEC_PERFECT_FOR_MOVE_TO_X2=1,
+	parameter CONSEC_PERFECT_FOR_MOVE_TO_X4=2
 ) (
 	input logic			clk, rst,
 	input logic			l_0_quality_valid,
@@ -19,6 +19,7 @@ module score_handler #(
 	output reg [$clog2(MAX_SCORE)-1:0] score,
 	output reg  [1:0] curr_multi_state
 );
+
 	localparam logic [1:0] QUALITY_PERFECT = 2'b00;
 	localparam logic [1:0] QUALITY_NORMAL  = 2'b01;
    	// localparam logic [1:0] QUALITY_POOR    = 2'b10;
@@ -29,10 +30,10 @@ module score_handler #(
 	logic 	[2:0] 	multi_fsm_multiplier;
 	
 
-	score_multiplier_fsm multi_fsm #(
+	score_multiplier_fsm #(
 		.CONSEC_PERFECT_TO_2(CONSEC_PERFECT_FOR_MOVE_TO_X2),
 		.CONSEC_PERFECT_TO_4(CONSEC_PERFECT_FOR_MOVE_TO_X4)
-	) (
+	) multi_fsm (
 		.clk(clk),
 		.rst(rst),
 		.reaction_valid(multi_fsm_quality_valid),
