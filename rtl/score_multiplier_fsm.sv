@@ -13,7 +13,11 @@ module score_multiplier_fsm #(
    	localparam logic [1:0] QUALITY_POOR    = 2'b10;
    	localparam logic [1:0] QUALITY_BAD     = 2'b11;
 
-	typedef enum logic [1:0] {X1, X2, X4} state_type;
+	typedef enum logic [1:0] {
+        X1=2'b00, 
+        X2=2'b01, 
+        X4=2'b11
+    } state_type;
 	state_type current_state;
 	
 	logic [2:0] c_consecutive_perfect;

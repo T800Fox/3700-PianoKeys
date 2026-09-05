@@ -3,6 +3,8 @@
 
 module tb_piano_keys_display;
 
+    logic clk = 0;
+
     logic [6:0] score_value;
     logic [1:0] score_multi;
 
@@ -55,6 +57,10 @@ module tb_piano_keys_display;
 
         .lane_leds(lane_leds)
     );
+
+    /* verilator lint_off BLKSEQ */
+    always #10 clk = ~clk;   // 20 ns period, like the DE1-SoC's 50 MHz
+    /* verilator lint_on BLKSEQ */
 
 
     initial begin
