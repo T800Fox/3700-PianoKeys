@@ -4,7 +4,7 @@ module seven_seg (
 );
 
 	always @(*) begin
-		// overflow logic -> anything above 10?
+		// overflow logic -> anything above 10
 		if (bcd > 4'b1010) segments = 7'b0111111;
 		else begin
 			case (bcd)

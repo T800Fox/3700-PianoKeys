@@ -1,25 +1,25 @@
 module piano_keys_display (
     input  [6:0] score_value, // {0 <= x <= 99}
-	 input  [1:0] score_multi, // {00, 01, 10}
-	 input  [3:0] lane_0_value,
-	 input  [3:0] lane_1_value,
-	 input  [3:0] lane_2_value,
-	 input  [3:0] lane_3_value,
-	 input lane_0_led,
-	 input lane_1_led,
-	 input lane_2_led,
-	 input lane_3_led,
-	 input 	[2:0] difficulty_level,
-	 
-	 output [6:0] score_ones_HEX,
-	 output [6:0] score_tens_HEX,
-	 output [2:0] score_multi_leds,
-	 output [6:0] lane_0_HEX,
-	 output [6:0] lane_1_HEX,
-	 output [6:0] lane_2_HEX,
-	 output [6:0] lane_3_HEX,
-	 output [3:0] lane_leds,
-	 output [2:0] difficulty_leds
+	input  [1:0] score_multi, // {00, 01, 10}
+	input  [3:0] lane_0_value,
+	input  [3:0] lane_1_value,
+	input  [3:0] lane_2_value,
+	input  [3:0] lane_3_value,
+	input lane_0_led,
+	input lane_1_led,
+	input lane_2_led,
+	input lane_3_led,
+	input 	[2:0] difficulty_level,
+	
+	output [6:0] score_ones_HEX,
+	output [6:0] score_tens_HEX,
+	output [2:0] score_multi_leds,
+	output [6:0] lane_0_HEX,
+	output [6:0] lane_1_HEX,
+	output [6:0] lane_2_HEX,
+	output [6:0] lane_3_HEX,
+	output [3:0] lane_leds,
+	output [2:0] difficulty_leds
 );
 
 	reg [3:0] ones_segment_value;
