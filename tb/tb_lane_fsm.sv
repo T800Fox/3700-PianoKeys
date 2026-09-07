@@ -241,4 +241,16 @@ module tb_lane_fsm;
         $display("ALL TESTS PASSED: tb_lane_fsm");
         $finish;
     end
+
+    initial begin : waveform_dump
+        if ($test$plusargs("dump")) begin
+`ifdef VERILATOR
+            $dumpfile("waveform.fst");
+`else
+            $dumpfile("waveform.vcd");
+`endif
+            $dumpvars(0, tb_lane_fsm);
+        end
+    end
+
 endmodule

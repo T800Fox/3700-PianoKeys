@@ -373,4 +373,16 @@ module tb_demo_top;
 
     end
 
+
+    initial begin : waveform_dump
+        if ($test$plusargs("dump")) begin
+`ifdef VERILATOR
+            $dumpfile("waveform.fst");
+`else
+            $dumpfile("waveform.vcd");
+`endif
+            $dumpvars(0, tb_demo_top);
+        end
+    end
+
 endmodule
