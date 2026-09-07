@@ -4,13 +4,13 @@ module demo_top #(
 
     // gy is 60 BPM and our countdown tick is a half-beat.
     // 30000 / 60 / 6 ~= 83 ms per subbeat.
-    parameter MS_PER_SUBBEAT              = 83,
+    parameter MS_PER_SUBBEAT              = 167,
 
     // jaspers_song: 192 BPM
-    parameter JASPERS_MS_PER_SUBBEAT      = 26,
+    parameter JASPERS_MS_PER_SUBBEAT      = 53,
 
     // twinkle: 95 BPM
-    parameter TWINKLE_MS_PER_SUBBEAT      = 53,
+    parameter TWINKLE_MS_PER_SUBBEAT      = 105,
 
     parameter SUBBEATS_PER_BEAT           = 6,
     parameter CLKS_PER_MS                 = 50000,
