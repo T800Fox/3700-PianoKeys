@@ -356,5 +356,8 @@ module tb_demo_top;
         );
 
     end
-
+    initial begin
+    $dumpfile("waveform.vcd");
+    $dumpvars(0, tb_demo_top);
+    end
 endmodule

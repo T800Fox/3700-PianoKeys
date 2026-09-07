@@ -155,4 +155,8 @@ module tb_score_handler;
         $finish;
     end
 
+    initial begin
+    $dumpfile("waveform.vcd");
+    $dumpvars(0, tb_score_handler);
+    end
 endmodule

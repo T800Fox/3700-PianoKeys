@@ -235,4 +235,8 @@ module tb_lane_fsm;
         $display("ALL TESTS PASSED: tb_lane_fsm");
         $finish;
     end
+    initial begin
+    $dumpfile("waveform.vcd");
+    $dumpvars(0, tb_lane_fsm);
+    end
 endmodule
